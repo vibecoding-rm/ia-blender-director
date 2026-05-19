@@ -111,6 +111,13 @@ workflows/comfy/           Workflows futuros de ComfyUI
 docs/                      Arquitectura y roadmap
 ```
 
+## Documentacion
+
+- [Vision del proyecto](docs/project_vision.md): idea base, objetivos, metas, escalabilidad y fases.
+- [Arquitectura MVP](docs/architecture.md): contrato tecnico actual y flujo de render.
+- [Roadmap](docs/roadmap.md): plan por semanas.
+- [Comandos](docs/commands.md): uso practico de la CLI y Makefile.
+
 ## Assets
 
 Los shots pueden referenciar assets versionados:
