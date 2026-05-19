@@ -107,6 +107,8 @@ Eventos iniciales:
 
 El indice es append-only para conservar historial aunque un job falle.
 
+El comando `jobs` resume el ultimo evento conocido de cada job, y `show <job_id>` lee `job.json` y `manifest.json` para mostrar rutas de video, blend y passes.
+
 ## Control Passes
 
 La primera version de passes genera imagenes estaticas del frame 1:

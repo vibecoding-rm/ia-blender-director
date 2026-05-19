@@ -39,6 +39,18 @@ make render SHOT=examples/shots/smoke_test.json
 El render crea una carpeta unica dentro de `renders/previews/`.
 Tambien registra eventos en `renders/index.jsonl`.
 
+## Listar jobs
+
+```bash
+make jobs
+```
+
+Mostrar un job especifico:
+
+```bash
+PYTHONPATH=src python3 -m ai_blender_director.cli show 20260519T154510Z
+```
+
 Render final:
 
 ```bash

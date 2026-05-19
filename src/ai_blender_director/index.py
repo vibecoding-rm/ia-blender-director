@@ -47,3 +47,17 @@ def read_index(index_path: Path) -> list[dict[str, Any]]:
             if line.strip():
                 records.append(json.loads(line))
     return records
+
+
+def latest_job_records(index_path: Path) -> list[dict[str, Any]]:
+    latest: dict[str, dict[str, Any]] = {}
+    for record in read_index(index_path):
+        latest[record["job_id"]] = record
+    return sorted(latest.values(), key=lambda record: record["timestamp"], reverse=True)
+
+
+def find_job_record(index_path: Path, job_id: str) -> dict[str, Any] | None:
+    for record in latest_job_records(index_path):
+        if record["job_id"] == job_id or record["job_id"].startswith(job_id):
+            return record
+    return None

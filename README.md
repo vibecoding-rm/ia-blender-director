@@ -74,6 +74,13 @@ Cada render crea una carpeta unica dentro de `renders/previews/` con:
 
 Cada job tambien agrega eventos a `renders/index.jsonl`.
 
+Consultar historial:
+
+```bash
+make jobs
+PYTHONPATH=src python3 -m ai_blender_director.cli show <job_id>
+```
+
 Perfiles:
 
 - `preview`: baja resolucion relativa, menos samples, iteracion rapida.
@@ -85,6 +92,7 @@ Atajos:
 make test
 make generate
 make create
+make jobs
 make validate
 make render SHOT=generated/shots/calle_cyberpunk_nocturna_con_lluvia_y_camara_orbitando_al_personaje.json
 make render SHOT=examples/shots/cyberpunk_orbit.json PROFILE=final

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_blender_director.index import append_index_event, read_index
+from ai_blender_director.index import append_index_event, find_job_record, latest_job_records, read_index
 from ai_blender_director.jobs import RenderJob
 
 
@@ -31,6 +31,14 @@ class IndexTest(unittest.TestCase):
             self.assertEqual(records[0]["event"], "created")
             self.assertEqual(records[1]["status"], "completed")
             self.assertEqual(records[1]["returncode"], 0)
+
+            latest = latest_job_records(index_path)
+            self.assertEqual(len(latest), 1)
+            self.assertEqual(latest[0]["status"], "completed")
+
+            found = find_job_record(index_path, "job_")
+            self.assertIsNotNone(found)
+            self.assertEqual(found["job_id"], "job_001")
 
 
 if __name__ == "__main__":
