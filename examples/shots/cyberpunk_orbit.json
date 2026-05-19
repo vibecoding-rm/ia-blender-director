@@ -1,0 +1,19 @@
+{
+  "scene": "cyberpunk street",
+  "style": "cinematic neon noir",
+  "duration_seconds": 4,
+  "fps": 24,
+  "resolution": {
+    "width": 1280,
+    "height": 720
+  },
+  "camera": {
+    "movement": "slow cinematic orbit",
+    "lens_mm": 35
+  },
+  "lighting": "red and cyan neon with soft volumetric ambience",
+  "subject": "prototype hero character",
+  "action": "walks forward and turns toward camera",
+  "weather": "rain",
+  "seed": 12345
+}

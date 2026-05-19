@@ -1,0 +1,19 @@
+{
+  "scene": "minimal test stage",
+  "style": "clean viewport preview",
+  "duration_seconds": 1,
+  "fps": 8,
+  "resolution": {
+    "width": 640,
+    "height": 360
+  },
+  "camera": {
+    "movement": "short lateral move",
+    "lens_mm": 35
+  },
+  "lighting": "soft studio light",
+  "subject": "test cube",
+  "action": "moves across the frame",
+  "weather": null,
+  "seed": 1
+}
