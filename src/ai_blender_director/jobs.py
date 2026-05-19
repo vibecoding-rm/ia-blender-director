@@ -17,6 +17,7 @@ class RenderJob:
     source_shot: Path
     job_shot: Path
     output_root: Path
+    profile: str
 
     @property
     def manifest_path(self) -> Path:
@@ -27,7 +28,10 @@ class RenderJob:
         return {key: str(value) if isinstance(value, Path) else value for key, value in data.items()}
 
 
-def create_render_job(shot_path: Path, output_root: Path) -> RenderJob:
+def create_render_job(shot_path: Path, output_root: Path, *, profile: str = "preview") -> RenderJob:
+    if profile not in {"preview", "final"}:
+        raise ValueError("profile must be 'preview' or 'final'")
+
     spec = load_shot_spec(shot_path)
     source_shot = shot_path.resolve()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -46,6 +50,7 @@ def create_render_job(shot_path: Path, output_root: Path) -> RenderJob:
         source_shot=source_shot,
         job_shot=job_shot.resolve(),
         output_root=output_root.resolve(),
+        profile=profile,
     )
     _write_job_manifest(job, load_json(job_shot))
     return job

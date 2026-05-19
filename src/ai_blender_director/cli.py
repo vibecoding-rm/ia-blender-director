@@ -35,10 +35,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     command_parser.add_argument("shot", type=Path)
     command_parser.add_argument("--output", type=Path, default=Path("renders/previews"))
+    command_parser.add_argument("--profile", choices=["preview", "final"], default="preview")
 
     render_parser = subparsers.add_parser("render", help="Create a render job and run Blender.")
     render_parser.add_argument("shot", type=Path)
     render_parser.add_argument("--output-root", type=Path, default=Path("renders/previews"))
+    render_parser.add_argument("--profile", choices=["preview", "final"], default="preview")
     render_parser.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args(argv)
@@ -49,9 +51,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "generate":
             return _generate(args.prompt, args.output_dir, args.duration, args.fps)
         if args.command == "blender-command":
-            return _blender_command(args.shot, args.output)
+            return _blender_command(args.shot, args.output, args.profile)
         if args.command == "render":
-            return _render(args.shot, args.output_root, args.dry_run)
+            return _render(args.shot, args.output_root, args.profile, args.dry_run)
     except ShotValidationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -84,23 +86,24 @@ def _generate(prompt: str, output_dir: Path, duration_seconds: int, fps: int) ->
     return 0
 
 
-def _blender_command(path: Path, output: Path) -> int:
+def _blender_command(path: Path, output: Path, profile: str) -> int:
     load_shot_spec(path)
-    print(" ".join(_build_blender_command(path, output)))
+    print(" ".join(_build_blender_command(path, output, profile=profile)))
     return 0
 
 
-def _render(path: Path, output_root: Path, dry_run: bool) -> int:
+def _render(path: Path, output_root: Path, profile: str, dry_run: bool) -> int:
     blender = shutil.which("blender")
     if blender is None:
         print("error: blender was not found in PATH", file=sys.stderr)
         return 2
 
-    job = create_render_job(path, output_root)
-    command = _build_blender_command(job.job_shot, job.job_dir, blender=blender)
+    job = create_render_job(path, output_root, profile=profile)
+    command = _build_blender_command(job.job_shot, job.job_dir, profile=profile, blender=blender)
 
     print(f"job: {job.job_id}", flush=True)
     print(f"job_dir: {job.job_dir}", flush=True)
+    print(f"profile: {job.profile}", flush=True)
     print("command: " + " ".join(command), flush=True)
     if dry_run:
         return 0
@@ -112,7 +115,13 @@ def _render(path: Path, output_root: Path, dry_run: bool) -> int:
     return completed.returncode
 
 
-def _build_blender_command(path: Path, output: Path, *, blender: str | None = None) -> list[str]:
+def _build_blender_command(
+    path: Path,
+    output: Path,
+    *,
+    profile: str,
+    blender: str | None = None,
+) -> list[str]:
     executable = blender or shutil.which("blender") or "blender"
     return [
         executable,
@@ -122,6 +131,7 @@ def _build_blender_command(path: Path, output: Path, *, blender: str | None = No
         "--",
         str(path),
         str(output),
+        profile,
     ]
 
 

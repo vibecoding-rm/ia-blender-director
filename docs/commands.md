@@ -26,8 +26,14 @@ make render SHOT=examples/shots/smoke_test.json
 
 El render crea una carpeta unica dentro de `renders/previews/`.
 
+Render final:
+
+```bash
+make render SHOT=examples/shots/cyberpunk_orbit.json PROFILE=final
+```
+
 ## Ver comando Blender sin ejecutar
 
 ```bash
-PYTHONPATH=src python3 -m ai_blender_director.cli render examples/shots/smoke_test.json --dry-run
+PYTHONPATH=src python3 -m ai_blender_director.cli render examples/shots/smoke_test.json --profile preview --dry-run
 ```

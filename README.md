@@ -64,6 +64,12 @@ Cada render crea una carpeta unica dentro de `renders/previews/` con:
 - `manifest.json`: manifest escrito por Blender despues del render.
 - `latest_preview.blend`: escena generada.
 - `shot_0001-XXXX.mp4`: video renderizado.
+- `passes/`: imagenes de control para IA visual y critic automatico.
+
+Perfiles:
+
+- `preview`: baja resolucion relativa, menos samples, iteracion rapida.
+- `final`: resolucion completa del spec y mas samples.
 
 Atajos:
 
@@ -72,6 +78,7 @@ make test
 make generate
 make validate
 make render SHOT=generated/shots/calle_cyberpunk_nocturna_con_lluvia_y_camara_orbitando_al_personaje.json
+make render SHOT=examples/shots/cyberpunk_orbit.json PROFILE=final
 make smoke-render
 ```
 

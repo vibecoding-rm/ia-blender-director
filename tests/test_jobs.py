@@ -32,13 +32,15 @@ class RenderJobTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            job = create_render_job(shot_path, root / "renders")
+            job = create_render_job(shot_path, root / "renders", profile="preview")
 
             self.assertTrue(job.job_dir.exists())
             self.assertTrue(job.job_shot.exists())
             self.assertTrue(job.manifest_path.exists())
+            self.assertEqual(job.profile, "preview")
             manifest = json.loads(job.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "created")
+            self.assertEqual(manifest["profile"], "preview")
             self.assertEqual(manifest["shot"]["scene"], "minimal cinematic stage")
 
             update_render_job_status(job, "completed", returncode=0)

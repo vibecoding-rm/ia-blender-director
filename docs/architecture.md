@@ -81,6 +81,22 @@ renders/previews/<timestamp>_<scene_slug>_<shot_slug>/
   manifest.json
   latest_preview.blend
   shot_0001-XXXX.mp4
+  passes/
+    beauty_frame_0001.png
+    subject_mask_frame_0001.png
+    depth_proxy_frame_0001.png
+    normal_proxy_frame_0001.png
 ```
 
 Esto evita pisar renders anteriores y permite comparar previews, repetir trabajos y auditar que spec produjo cada salida.
+
+## Control Passes
+
+La primera version de passes genera imagenes estaticas del frame 1:
+
+- `beauty`: render visual normal.
+- `subject_mask`: mascara binaria aproximada del sujeto.
+- `depth_proxy`: proxy de profundidad por distancia de objetos a camara.
+- `normal_proxy`: proxy cromatico por posicion de objetos.
+
+`depth_proxy` y `normal_proxy` son deliberadamente simples. Sirven para empezar a cablear ComfyUI y critic visual; mas adelante deben reemplazarse por pases tecnicos reales del compositor de Blender.

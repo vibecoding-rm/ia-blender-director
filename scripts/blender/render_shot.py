@@ -10,13 +10,13 @@ import bpy
 
 
 def main() -> int:
-    shot_path, output_dir = _parse_args(sys.argv)
+    shot_path, output_dir, profile = _parse_args(sys.argv)
     spec = _load_json(shot_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     random.seed(spec["seed"])
     _clear_scene()
-    _configure_render(spec, output_dir)
+    _configure_render(spec, output_dir, profile)
 
     _create_environment(spec)
     subject = _create_subject(spec)
@@ -32,17 +32,21 @@ def main() -> int:
 
     bpy.ops.wm.save_as_mainfile(filepath=str(output_dir / "latest_preview.blend"))
     bpy.ops.render.render(animation=True)
-    _write_manifest(spec, shot_path, output_dir)
+    passes = _render_control_passes(output_dir, subject)
+    _write_manifest(spec, shot_path, output_dir, profile, passes)
     return 0
 
 
-def _parse_args(argv: list[str]) -> tuple[Path, Path]:
+def _parse_args(argv: list[str]) -> tuple[Path, Path, str]:
     if "--" not in argv:
-        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir")
+        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir [preview|final]")
     script_args = argv[argv.index("--") + 1 :]
-    if len(script_args) != 2:
-        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir")
-    return Path(script_args[0]).resolve(), Path(script_args[1]).resolve()
+    if len(script_args) not in {2, 3}:
+        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir [preview|final]")
+    profile = script_args[2] if len(script_args) == 3 else "preview"
+    if profile not in {"preview", "final"}:
+        raise SystemExit("profile must be 'preview' or 'final'")
+    return Path(script_args[0]).resolve(), Path(script_args[1]).resolve(), profile
 
 
 def _load_json(path: Path) -> dict:
@@ -55,19 +59,20 @@ def _clear_scene() -> None:
     bpy.ops.object.delete()
 
 
-def _configure_render(spec: dict, output_dir: Path) -> None:
+def _configure_render(spec: dict, output_dir: Path, profile: str) -> None:
     scene = bpy.context.scene
     scene.frame_start = 1
     scene.frame_end = int(spec["duration_seconds"] * spec["fps"])
     scene.frame_set(1)
     scene.render.fps = int(spec["fps"])
-    scene.render.resolution_x = int(spec["resolution"]["width"])
-    scene.render.resolution_y = int(spec["resolution"]["height"])
+    resolution_scale = 0.5 if profile == "preview" else 1.0
+    scene.render.resolution_x = max(320, int(spec["resolution"]["width"] * resolution_scale))
+    scene.render.resolution_y = max(240, int(spec["resolution"]["height"] * resolution_scale))
     scene.render.filepath = str(output_dir / "shot_")
     scene.render.image_settings.file_format = "FFMPEG"
     scene.render.ffmpeg.format = "MPEG4"
     scene.render.ffmpeg.codec = "H264"
-    scene.eevee.taa_render_samples = 64
+    scene.eevee.taa_render_samples = 16 if profile == "preview" else 64
     scene.world = bpy.data.worlds.new("director_world") if scene.world is None else scene.world
     scene.world.color = (0.015, 0.015, 0.025)
 
@@ -319,6 +324,130 @@ def _create_atmosphere_proxy(spec: dict) -> None:
         particle.data.materials.append(material)
 
 
+def _render_control_passes(output_dir: Path, subject: bpy.types.Object) -> dict[str, str]:
+    passes_dir = output_dir / "passes"
+    passes_dir.mkdir(parents=True, exist_ok=True)
+    scene = bpy.context.scene
+    scene.frame_set(1)
+
+    original_format = scene.render.image_settings.file_format
+    original_filepath = scene.render.filepath
+    material_state = _snapshot_materials()
+    world_color = tuple(scene.world.color) if scene.world else (0.0, 0.0, 0.0)
+
+    try:
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.filepath = str(passes_dir / "beauty_frame_0001")
+        bpy.ops.render.render(write_still=True)
+        beauty = _resolve_png(passes_dir / "beauty_frame_0001")
+
+        _assign_mask_materials(subject)
+        _set_world_color((0.0, 0.0, 0.0))
+        scene.render.filepath = str(passes_dir / "subject_mask_frame_0001")
+        bpy.ops.render.render(write_still=True)
+        subject_mask = _resolve_png(passes_dir / "subject_mask_frame_0001")
+
+        _assign_depth_proxy_materials()
+        scene.render.filepath = str(passes_dir / "depth_proxy_frame_0001")
+        bpy.ops.render.render(write_still=True)
+        depth_proxy = _resolve_png(passes_dir / "depth_proxy_frame_0001")
+
+        _assign_normal_proxy_materials()
+        scene.render.filepath = str(passes_dir / "normal_proxy_frame_0001")
+        bpy.ops.render.render(write_still=True)
+        normal_proxy = _resolve_png(passes_dir / "normal_proxy_frame_0001")
+    finally:
+        _restore_materials(material_state)
+        _set_world_color(world_color)
+        scene.render.image_settings.file_format = original_format
+        scene.render.filepath = original_filepath
+
+    return {
+        "beauty": str(beauty),
+        "subject_mask": str(subject_mask),
+        "depth_proxy": str(depth_proxy),
+        "normal_proxy": str(normal_proxy),
+    }
+
+
+def _snapshot_materials() -> dict[str, list[bpy.types.Material]]:
+    state = {}
+    for obj in _mesh_objects():
+        state[obj.name] = list(obj.data.materials)
+    return state
+
+
+def _restore_materials(state: dict[str, list[bpy.types.Material]]) -> None:
+    for obj in _mesh_objects():
+        obj.data.materials.clear()
+        for material in state.get(obj.name, []):
+            obj.data.materials.append(material)
+
+
+def _assign_mask_materials(subject: bpy.types.Object) -> None:
+    white = _emission_material("pass_subject_white", (1.0, 1.0, 1.0, 1.0), 1.0)
+    black = _emission_material("pass_background_black", (0.0, 0.0, 0.0, 1.0), 1.0)
+    for obj in _mesh_objects():
+        _set_object_material(obj, white if _belongs_to_subject(obj, subject) else black)
+
+
+def _assign_depth_proxy_materials() -> None:
+    camera = bpy.context.scene.camera
+    max_distance = 14.0
+    for obj in _mesh_objects():
+        distance = (obj.location - camera.location).length if camera else obj.location.length
+        shade = max(0.0, min(1.0, 1.0 - (distance / max_distance)))
+        material = _emission_material(f"pass_depth_{obj.name}", (shade, shade, shade, 1.0), 1.0)
+        _set_object_material(obj, material)
+
+
+def _assign_normal_proxy_materials() -> None:
+    for obj in _mesh_objects():
+        location = obj.location
+        color = (
+            _remap(location.x, -6.0, 6.0),
+            _remap(location.y, -6.0, 6.0),
+            _remap(location.z, 0.0, 6.0),
+            1.0,
+        )
+        material = _emission_material(f"pass_normal_proxy_{obj.name}", color, 1.0)
+        _set_object_material(obj, material)
+
+
+def _set_object_material(obj: bpy.types.Object, material: bpy.types.Material) -> None:
+    obj.data.materials.clear()
+    obj.data.materials.append(material)
+
+
+def _mesh_objects() -> list[bpy.types.Object]:
+    return [obj for obj in bpy.context.scene.objects if obj.type == "MESH" and not obj.hide_render]
+
+
+def _belongs_to_subject(obj: bpy.types.Object, subject: bpy.types.Object) -> bool:
+    current = obj
+    while current is not None:
+        if current == subject:
+            return True
+        current = current.parent
+    return obj.name.startswith("subject_") or obj.name.startswith("humanoid_")
+
+
+def _set_world_color(color: tuple[float, float, float]) -> None:
+    if bpy.context.scene.world:
+        bpy.context.scene.world.color = color
+
+
+def _resolve_png(path_without_suffix: Path) -> Path:
+    candidate = path_without_suffix.with_suffix(".png")
+    return candidate if candidate.exists() else path_without_suffix
+
+
+def _remap(value: float, minimum: float, maximum: float) -> float:
+    if maximum == minimum:
+        return 0.0
+    return max(0.0, min(1.0, (value - minimum) / (maximum - minimum)))
+
+
 def _material(name: str, color: tuple[float, float, float, float]) -> bpy.types.Material:
     material = bpy.data.materials.new(name)
     material.diffuse_color = color
@@ -335,11 +464,19 @@ def _emission_material(name: str, color: tuple[float, float, float, float], stre
     return material
 
 
-def _write_manifest(spec: dict, shot_path: Path, output_dir: Path) -> None:
+def _write_manifest(
+    spec: dict,
+    shot_path: Path,
+    output_dir: Path,
+    profile: str,
+    passes: dict[str, str],
+) -> None:
     frame_start = 1
     frame_end = int(spec["duration_seconds"] * spec["fps"])
+    scene = bpy.context.scene
     manifest = {
         "job_id": output_dir.name,
+        "profile": profile,
         "shot": str(shot_path),
         "scene": spec["scene"],
         "duration_seconds": spec["duration_seconds"],
@@ -348,9 +485,14 @@ def _write_manifest(spec: dict, shot_path: Path, output_dir: Path) -> None:
         "frame_end": frame_end,
         "frame_count": frame_end,
         "resolution": spec["resolution"],
+        "render_resolution": {
+            "width": scene.render.resolution_x,
+            "height": scene.render.resolution_y,
+        },
         "output_prefix": str(output_dir / "shot_"),
         "video": str(output_dir / f"shot_{frame_start:04d}-{frame_end:04d}.mp4"),
         "blend_file": str(output_dir / "latest_preview.blend"),
+        "passes": passes,
         "spec": spec,
     }
     with (output_dir / "manifest.json").open("w", encoding="utf-8") as file:
