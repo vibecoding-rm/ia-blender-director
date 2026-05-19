@@ -1,4 +1,4 @@
-.PHONY: test validate generate blender-command smoke-render render
+.PHONY: test validate generate create blender-command smoke-render render
 
 PYTHONPATH := src
 SHOT ?= examples/shots/cyberpunk_orbit.json
@@ -14,6 +14,9 @@ validate:
 
 generate:
 	PYTHONPATH=$(PYTHONPATH) python3 -m ai_blender_director.cli generate "$(PROMPT)"
+
+create:
+	PYTHONPATH=$(PYTHONPATH) python3 -m ai_blender_director.cli create "$(PROMPT)" --render --profile $(PROFILE)
 
 blender-command:
 	PYTHONPATH=$(PYTHONPATH) python3 -m ai_blender_director.cli blender-command $(SHOT) --output renders/previews

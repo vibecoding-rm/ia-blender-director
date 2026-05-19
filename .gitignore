@@ -9,6 +9,7 @@ venv/
 
 renders/previews/*
 renders/final/*
+renders/index.jsonl
 !renders/previews/.gitkeep
 !renders/final/.gitkeep
 renders/**/*.blend

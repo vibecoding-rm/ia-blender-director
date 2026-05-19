@@ -90,6 +90,23 @@ renders/previews/<timestamp>_<scene_slug>_<shot_slug>/
 
 Esto evita pisar renders anteriores y permite comparar previews, repetir trabajos y auditar que spec produjo cada salida.
 
+## Render Index
+
+Los jobs tambien escriben eventos JSONL en:
+
+```text
+renders/index.jsonl
+```
+
+Eventos iniciales:
+
+- `created`
+- `dry_run`
+- `started`
+- `finished`
+
+El indice es append-only para conservar historial aunque un job falle.
+
 ## Control Passes
 
 La primera version de passes genera imagenes estaticas del frame 1:

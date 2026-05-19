@@ -12,6 +12,18 @@ make test
 make generate PROMPT="calle cyberpunk nocturna con lluvia y camara orbitando al personaje"
 ```
 
+## Generar y renderizar
+
+```bash
+make create PROMPT="bosque con niebla y camara fija con personaje mirando a camara"
+```
+
+Sin render:
+
+```bash
+PYTHONPATH=src python3 -m ai_blender_director.cli create "bosque con niebla"
+```
+
 ## Validar un shot
 
 ```bash
@@ -25,6 +37,7 @@ make render SHOT=examples/shots/smoke_test.json
 ```
 
 El render crea una carpeta unica dentro de `renders/previews/`.
+Tambien registra eventos en `renders/index.jsonl`.
 
 Render final:
 

@@ -39,6 +39,12 @@ Generar un plano desde texto:
 make generate PROMPT="calle cyberpunk nocturna con lluvia y cámara orbitando al personaje"
 ```
 
+Generar y renderizar en un solo paso:
+
+```bash
+make create PROMPT="bosque con niebla y camara fija con personaje mirando a camara"
+```
+
 Validar un plano:
 
 ```bash
@@ -66,6 +72,8 @@ Cada render crea una carpeta unica dentro de `renders/previews/` con:
 - `shot_0001-XXXX.mp4`: video renderizado.
 - `passes/`: imagenes de control para IA visual y critic automatico.
 
+Cada job tambien agrega eventos a `renders/index.jsonl`.
+
 Perfiles:
 
 - `preview`: baja resolucion relativa, menos samples, iteracion rapida.
@@ -76,6 +84,7 @@ Atajos:
 ```bash
 make test
 make generate
+make create
 make validate
 make render SHOT=generated/shots/calle_cyberpunk_nocturna_con_lluvia_y_camara_orbitando_al_personaje.json
 make render SHOT=examples/shots/cyberpunk_orbit.json PROFILE=final
