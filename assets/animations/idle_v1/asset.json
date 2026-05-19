@@ -1,0 +1,10 @@
+{
+  "id": "idle_v1",
+  "type": "animation",
+  "name": "Idle Placeholder v1",
+  "source": "procedural_placeholder",
+  "path": null,
+  "metadata": {
+    "description": "Minimal idle proxy animation."
+  }
+}

@@ -24,6 +24,21 @@ Sin render:
 PYTHONPATH=src python3 -m ai_blender_director.cli create "bosque con niebla"
 ```
 
+El generador local puede rellenar assets placeholder:
+
+```json
+"character": "protagonista_v1",
+"environment": "forest_v1",
+"animation": "idle_v1"
+```
+
+Listar assets registrados:
+
+```bash
+PYTHONPATH=src python3 -m ai_blender_director.cli assets
+PYTHONPATH=src python3 -m ai_blender_director.cli assets --type character
+```
+
 ## Validar un shot
 
 ```bash

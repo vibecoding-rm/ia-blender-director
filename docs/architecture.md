@@ -36,6 +36,30 @@ User Prompt
 - `action`: accion principal.
 - `weather`: efecto ambiental opcional.
 - `seed`: semilla reproducible.
+- `character`: asset opcional de personaje.
+- `environment`: asset opcional de escenario.
+- `animation`: asset opcional de animacion.
+
+## Asset Registry
+
+Los assets se describen con manifiestos `asset.json`:
+
+```text
+assets/characters/<id>/asset.json
+assets/environments/<id>/asset.json
+assets/animations/<id>/asset.json
+```
+
+Campos base:
+
+- `id`
+- `type`
+- `name`
+- `source`
+- `path`
+- `metadata`
+
+Si `path` es `null`, Blender usa un placeholder procedural. Esto permite estabilizar contratos antes de introducir assets reales.
 
 ## Fase 1
 

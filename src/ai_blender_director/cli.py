@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .assets import AssetRegistry, AssetValidationError
 from .generator import write_generated_shot
 from .index import append_index_event, find_job_record, latest_job_records
 from .io import load_shot_spec
@@ -65,6 +66,10 @@ def main(argv: list[str] | None = None) -> int:
     show_parser.add_argument("job_id")
     show_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
 
+    assets_parser = subparsers.add_parser("assets", help="List registered character, environment, and animation assets.")
+    assets_parser.add_argument("--root", type=Path, default=Path("assets"))
+    assets_parser.add_argument("--type", choices=["character", "environment", "animation"])
+
     args = parser.parse_args(argv)
 
     try:
@@ -92,6 +97,11 @@ def main(argv: list[str] | None = None) -> int:
             return _jobs(args.index, args.limit)
         if args.command == "show":
             return _show(args.index, args.job_id)
+        if args.command == "assets":
+            return _assets(args.root, args.type)
+    except AssetValidationError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     except ShotValidationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -242,6 +252,19 @@ def _show(index_path: Path, job_id: str) -> int:
             print("passes:")
             for name, path in sorted(passes.items()):
                 print(f"  {name}: {path}")
+    return 0
+
+
+def _assets(root: Path, asset_type: str | None) -> int:
+    assets = AssetRegistry(root).list_assets(asset_type)
+    if not assets:
+        print(f"no assets found in {root}")
+        return 0
+
+    for asset in assets:
+        path_status = "placeholder" if asset.path is None else str(asset.path)
+        exists = "ready" if asset.exists else "missing-file"
+        print(f"{asset.asset_type:11} {asset.asset_id:28} {asset.source:24} {exists:12} {path_status}")
     return 0
 
 

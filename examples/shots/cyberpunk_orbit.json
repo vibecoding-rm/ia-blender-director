@@ -15,5 +15,8 @@
   "subject": "prototype hero character",
   "action": "walks forward and turns toward camera",
   "weather": "rain",
+  "character": "protagonista_v1",
+  "environment": "cyberpunk_street_v1",
+  "animation": "walk_v1",
   "seed": 12345
 }

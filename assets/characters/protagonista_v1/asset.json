@@ -1,0 +1,11 @@
+{
+  "id": "protagonista_v1",
+  "type": "character",
+  "name": "Protagonista Placeholder v1",
+  "source": "procedural_placeholder",
+  "path": null,
+  "metadata": {
+    "description": "Humanoid proxy used until a real rigged character is imported.",
+    "default_scale": 1.0
+  }
+}

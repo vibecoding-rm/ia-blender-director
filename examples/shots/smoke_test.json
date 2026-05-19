@@ -15,5 +15,8 @@
   "subject": "test cube",
   "action": "moves across the frame",
   "weather": null,
+  "character": null,
+  "environment": null,
+  "animation": null,
   "seed": 1
 }

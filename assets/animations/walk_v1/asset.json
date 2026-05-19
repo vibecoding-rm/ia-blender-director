@@ -1,0 +1,10 @@
+{
+  "id": "walk_v1",
+  "type": "animation",
+  "name": "Walk Placeholder v1",
+  "source": "procedural_placeholder",
+  "path": null,
+  "metadata": {
+    "description": "Simple forward movement proxy animation."
+  }
+}

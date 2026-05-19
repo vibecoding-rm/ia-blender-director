@@ -33,6 +33,21 @@ class CameraSpec:
 
 
 @dataclass(frozen=True)
+class AssetRefs:
+    character: str | None = None
+    environment: str | None = None
+    animation: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AssetRefs":
+        return cls(
+            character=_optional_str(data, "character", max_length=80),
+            environment=_optional_str(data, "environment", max_length=80),
+            animation=_optional_str(data, "animation", max_length=80),
+        )
+
+
+@dataclass(frozen=True)
 class ShotSpec:
     scene: str
     style: str
@@ -45,6 +60,7 @@ class ShotSpec:
     action: str
     weather: str | None
     seed: int
+    assets: AssetRefs
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ShotSpec":
@@ -66,6 +82,7 @@ class ShotSpec:
             action=_required_str(data, "action", max_length=160),
             weather=_optional_str(data, "weather", max_length=80),
             seed=_required_int(data, "seed", minimum=0, maximum=2_147_483_647),
+            assets=AssetRefs.from_dict(data),
         )
 
     @property

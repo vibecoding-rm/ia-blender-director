@@ -8,21 +8,25 @@ from pathlib import Path
 
 import bpy
 
+ROOT = Path(__file__).resolve().parents[2]
+ASSETS_ROOT = ROOT / "assets"
+
 
 def main() -> int:
     shot_path, output_dir, profile = _parse_args(sys.argv)
     spec = _load_json(shot_path)
     output_dir.mkdir(parents=True, exist_ok=True)
+    asset_refs = _resolve_asset_refs(spec)
 
     random.seed(spec["seed"])
     _clear_scene()
     _configure_render(spec, output_dir, profile)
 
-    _create_environment(spec)
-    subject = _create_subject(spec)
+    _create_environment(spec, asset_refs)
+    subject = _create_subject(spec, asset_refs)
     _create_lighting(spec)
     camera = _create_camera(spec, subject)
-    _animate_subject(subject, spec)
+    _animate_subject(subject, spec, asset_refs)
     _animate_camera(camera, spec)
 
     if spec.get("weather") == "rain":
@@ -33,7 +37,7 @@ def main() -> int:
     bpy.ops.wm.save_as_mainfile(filepath=str(output_dir / "latest_preview.blend"))
     bpy.ops.render.render(animation=True)
     passes = _render_control_passes(output_dir, subject)
-    _write_manifest(spec, shot_path, output_dir, profile, passes)
+    _write_manifest(spec, shot_path, output_dir, profile, passes, asset_refs)
     return 0
 
 
@@ -77,7 +81,11 @@ def _configure_render(spec: dict, output_dir: Path, profile: str) -> None:
     scene.world.color = (0.015, 0.015, 0.025)
 
 
-def _create_environment(spec: dict) -> None:
+def _create_environment(spec: dict, asset_refs: dict) -> None:
+    environment = asset_refs.get("environment")
+    if environment:
+        print(f"Using environment asset: {environment['id']} ({environment['source']})")
+
     scene_name = spec["scene"].lower()
     if "street" in scene_name or "cyberpunk" in scene_name:
         _create_cyberpunk_street()
@@ -170,9 +178,13 @@ def _add_floor(name: str, *, color: tuple[float, float, float, float]) -> None:
     floor.data.materials.append(_material(f"{name}_material", color))
 
 
-def _create_subject(spec: dict) -> bpy.types.Object:
+def _create_subject(spec: dict, asset_refs: dict) -> bpy.types.Object:
+    character = asset_refs.get("character")
+    if character:
+        print(f"Using character asset: {character['id']} ({character['source']})")
+
     subject_name = spec["subject"].lower()
-    if "character" in subject_name or "hero" in subject_name or "humano" in subject_name:
+    if character or "character" in subject_name or "hero" in subject_name or "humano" in subject_name:
         subject = _create_humanoid_proxy(spec)
     elif "vehicle" in subject_name:
         subject = _create_vehicle_proxy(spec)
@@ -223,12 +235,14 @@ def _create_camera(spec: dict, subject: bpy.types.Object) -> bpy.types.Object:
     return camera
 
 
-def _animate_subject(subject: bpy.types.Object, spec: dict) -> None:
+def _animate_subject(subject: bpy.types.Object, spec: dict, asset_refs: dict) -> None:
     frame_end = int(spec["duration_seconds"] * spec["fps"])
     action = spec["action"].lower()
-    start_x = -2.0 if "runs" in action else -1.5
-    end_x = 2.0 if "runs" in action else 1.5
-    if "stands" in action:
+    animation_id = asset_refs.get("animation", {}).get("id")
+
+    start_x = -2.0 if "runs" in action or animation_id == "run_v1" else -1.5
+    end_x = 2.0 if "runs" in action or animation_id == "run_v1" else 1.5
+    if "stands" in action or animation_id == "idle_v1":
         start_x = end_x = 0
 
     subject.location = (start_x, 0, 1)
@@ -292,6 +306,44 @@ def _create_vehicle_proxy(spec: dict) -> bpy.types.Object:
     vehicle.dimensions = (2.3, 1.1, 0.55)
     vehicle.data.materials.append(material)
     return vehicle
+
+
+def _resolve_asset_refs(spec: dict) -> dict:
+    refs = {}
+    for key, asset_type in [
+        ("character", "characters"),
+        ("environment", "environments"),
+        ("animation", "animations"),
+    ]:
+        asset_id = spec.get(key)
+        if not asset_id:
+            continue
+        refs[key] = _load_asset_ref(asset_id, asset_type)
+    return refs
+
+
+def _load_asset_ref(asset_id: str, asset_type: str) -> dict:
+    manifest_path = ASSETS_ROOT / asset_type / asset_id / "asset.json"
+    if not manifest_path.exists():
+        return {
+            "id": asset_id,
+            "type": asset_type.rstrip("s"),
+            "source": "missing",
+            "manifest": str(manifest_path),
+            "resolved": False,
+        }
+    with manifest_path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    return {
+        "id": data.get("id", asset_id),
+        "type": data.get("type", asset_type.rstrip("s")),
+        "name": data.get("name", asset_id),
+        "source": data.get("source", "unknown"),
+        "path": str((manifest_path.parent / data["path"]).resolve()) if data.get("path") else None,
+        "manifest": str(manifest_path.resolve()),
+        "resolved": True,
+        "metadata": data.get("metadata", {}),
+    }
 
 
 def _create_rain_proxy() -> None:
@@ -470,6 +522,7 @@ def _write_manifest(
     output_dir: Path,
     profile: str,
     passes: dict[str, str],
+    asset_refs: dict,
 ) -> None:
     frame_start = 1
     frame_end = int(spec["duration_seconds"] * spec["fps"])
@@ -493,6 +546,7 @@ def _write_manifest(
         "video": str(output_dir / f"shot_{frame_start:04d}-{frame_end:04d}.mp4"),
         "blend_file": str(output_dir / "latest_preview.blend"),
         "passes": passes,
+        "assets": asset_refs,
         "spec": spec,
     }
     with (output_dir / "manifest.json").open("w", encoding="utf-8") as file:

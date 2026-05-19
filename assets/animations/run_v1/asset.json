@@ -1,0 +1,10 @@
+{
+  "id": "run_v1",
+  "type": "animation",
+  "name": "Run Placeholder v1",
+  "source": "procedural_placeholder",
+  "path": null,
+  "metadata": {
+    "description": "Simple faster movement proxy animation."
+  }
+}

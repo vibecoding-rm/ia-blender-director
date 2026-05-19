@@ -1,0 +1,10 @@
+{
+  "id": "cyberpunk_street_v1",
+  "type": "environment",
+  "name": "Cyberpunk Street Placeholder v1",
+  "source": "procedural_placeholder",
+  "path": null,
+  "metadata": {
+    "description": "Procedural neon street proxy used until a real environment asset is imported."
+  }
+}

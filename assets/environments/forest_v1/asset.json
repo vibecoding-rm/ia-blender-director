@@ -1,0 +1,10 @@
+{
+  "id": "forest_v1",
+  "type": "environment",
+  "name": "Forest Placeholder v1",
+  "source": "procedural_placeholder",
+  "path": null,
+  "metadata": {
+    "description": "Procedural forest proxy used until a real environment asset is imported."
+  }
+}

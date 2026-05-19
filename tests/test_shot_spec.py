@@ -20,11 +20,15 @@ class ShotSpecTest(unittest.TestCase):
                 "action": "moves forward",
                 "weather": None,
                 "seed": 7,
+                "character": "protagonista_v1",
+                "environment": "cyberpunk_street_v1",
+                "animation": "walk_v1",
             }
         )
 
         self.assertEqual(spec.frame_count, 72)
         self.assertEqual(spec.camera.lens_mm, 50)
+        self.assertEqual(spec.assets.character, "protagonista_v1")
 
     def test_rejects_unbounded_duration(self) -> None:
         with self.assertRaises(ShotValidationError):

@@ -13,6 +13,8 @@ class GenerateShotTest(unittest.TestCase):
         self.assertEqual(shot["camera"]["movement"], "orbit")
         self.assertEqual(shot["weather"], "rain")
         self.assertEqual(shot["style"], "cinematic neon noir")
+        self.assertIsNone(shot["character"])
+        self.assertEqual(shot["environment"], "cyberpunk_street_v1")
 
     def test_generates_valid_forest_spec(self) -> None:
         shot = generate_shot("bosque con niebla y camara fija", duration_seconds=2, fps=12)
@@ -22,6 +24,7 @@ class GenerateShotTest(unittest.TestCase):
         self.assertEqual(shot["weather"], "fog")
         self.assertEqual(shot["duration_seconds"], 2)
         self.assertEqual(shot["fps"], 12)
+        self.assertEqual(shot["environment"], "forest_v1")
 
 
 if __name__ == "__main__":

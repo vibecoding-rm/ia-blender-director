@@ -32,6 +32,9 @@ def generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int = 24) -> d
         "action": _detect_action(normalized),
         "weather": weather,
         "seed": _seed_from_prompt(normalized),
+        "character": _detect_character(normalized),
+        "environment": _detect_environment(normalized, scene),
+        "animation": _detect_animation(normalized),
     }
     ShotSpec.from_dict(shot)
     return shot
@@ -116,6 +119,30 @@ def _detect_subject(prompt: str) -> str:
     if _contains(prompt, "auto", "car", "vehiculo", "vehículo"):
         return "placeholder vehicle"
     return "test subject"
+
+
+def _detect_character(prompt: str) -> str | None:
+    if _contains(prompt, "personaje", "character", "humano", "hero", "protagonista"):
+        return "protagonista_v1"
+    return None
+
+
+def _detect_environment(prompt: str, scene: str) -> str | None:
+    if scene == "cyberpunk street":
+        return "cyberpunk_street_v1"
+    if scene == "procedural forest":
+        return "forest_v1"
+    return None
+
+
+def _detect_animation(prompt: str) -> str | None:
+    if _contains(prompt, "camina", "walk", "walking"):
+        return "walk_v1"
+    if _contains(prompt, "corre", "run", "running"):
+        return "run_v1"
+    if _contains(prompt, "mira", "look", "observa"):
+        return "idle_v1"
+    return None
 
 
 def _detect_action(prompt: str) -> str:

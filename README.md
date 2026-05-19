@@ -111,6 +111,28 @@ workflows/comfy/           Workflows futuros de ComfyUI
 docs/                      Arquitectura y roadmap
 ```
 
+## Assets
+
+Los shots pueden referenciar assets versionados:
+
+```json
+{
+  "character": "protagonista_v1",
+  "environment": "cyberpunk_street_v1",
+  "animation": "walk_v1"
+}
+```
+
+Cada asset vive con un `asset.json`:
+
+```text
+assets/characters/protagonista_v1/asset.json
+assets/environments/cyberpunk_street_v1/asset.json
+assets/animations/walk_v1/asset.json
+```
+
+Por ahora son placeholders procedurales. Cuando agreguemos archivos reales (`.blend`, `.glb`, `.fbx`), el mismo contrato seguirá funcionando.
+
 ## Próximo Objetivo
 
 El siguiente paso técnico es reemplazar el generador local por un `Director Agent` que produzca el mismo `shot.json` validado, sin darle permisos directos para ejecutar Python arbitrario.
