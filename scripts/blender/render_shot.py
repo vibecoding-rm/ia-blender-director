@@ -85,6 +85,12 @@ def _create_environment(spec: dict, asset_refs: dict) -> None:
     environment = asset_refs.get("environment")
     if environment:
         print(f"Using environment asset: {environment['id']} ({environment['source']})")
+        if environment.get("path"):
+            imported = _import_glb(environment["path"], label="environment")
+            if imported is not None:
+                print(f"  Imported environment from: {environment['path']}")
+                return
+            print(f"  Import failed, falling back to procedural environment.")
 
     scene_name = spec["scene"].lower()
     if "street" in scene_name or "cyberpunk" in scene_name:
@@ -182,6 +188,14 @@ def _create_subject(spec: dict, asset_refs: dict) -> bpy.types.Object:
     character = asset_refs.get("character")
     if character:
         print(f"Using character asset: {character['id']} ({character['source']})")
+        if character.get("path"):
+            imported = _import_glb(character["path"], label="character")
+            if imported is not None:
+                imported.name = f"subject_{_slug(spec['subject'])}"
+                imported.location = (0, 0, 0)
+                print(f"  Imported character from: {character['path']}")
+                return imported
+            print(f"  Import failed, falling back to procedural character.")
 
     subject_name = spec["subject"].lower()
     if character or "character" in subject_name or "hero" in subject_name or "humano" in subject_name:
@@ -238,8 +252,18 @@ def _create_camera(spec: dict, subject: bpy.types.Object) -> bpy.types.Object:
 def _animate_subject(subject: bpy.types.Object, spec: dict, asset_refs: dict) -> None:
     frame_end = int(spec["duration_seconds"] * spec["fps"])
     action = spec["action"].lower()
-    animation_id = asset_refs.get("animation", {}).get("id")
+    animation_ref = asset_refs.get("animation", {})
+    animation_id = animation_ref.get("id")
 
+    # If a real animation .glb is provided, try to apply it via NLA
+    if animation_ref.get("path"):
+        applied = _apply_nla_animation(subject, animation_ref["path"], frame_end)
+        if applied:
+            print(f"  Applied NLA animation from: {animation_ref['path']}")
+            return
+        print("  NLA animation apply failed, falling back to keyframe animation.")
+
+    # Fallback: simple keyframe-based movement
     start_x = -2.0 if "runs" in action or animation_id == "run_v1" else -1.5
     end_x = 2.0 if "runs" in action or animation_id == "run_v1" else 1.5
     if "stands" in action or animation_id == "idle_v1":
@@ -334,16 +358,96 @@ def _load_asset_ref(asset_id: str, asset_type: str) -> dict:
         }
     with manifest_path.open("r", encoding="utf-8") as file:
         data = json.load(file)
+    raw_path = data.get("path")
+    resolved_path: str | None = None
+    if raw_path:
+        candidate = (manifest_path.parent / raw_path).resolve()
+        resolved_path = str(candidate) if candidate.exists() else None
+        if not candidate.exists():
+            print(f"  WARNING: asset '{asset_id}' path not found: {candidate}")
     return {
         "id": data.get("id", asset_id),
         "type": data.get("type", asset_type.rstrip("s")),
         "name": data.get("name", asset_id),
         "source": data.get("source", "unknown"),
-        "path": str((manifest_path.parent / data["path"]).resolve()) if data.get("path") else None,
+        "path": resolved_path,
         "manifest": str(manifest_path.resolve()),
         "resolved": True,
         "metadata": data.get("metadata", {}),
     }
+
+
+def _import_glb(path: str, *, label: str = "asset") -> bpy.types.Object | None:
+    """Import a .glb file and return its root Empty or first mesh object.
+
+    Returns None if the import fails or produces no objects.
+    All imported objects are grouped under a new Empty named after the label.
+    """
+    before = set(bpy.context.scene.objects)
+    try:
+        bpy.ops.import_scene.gltf(filepath=path)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ERROR importing {label} from '{path}': {exc}")
+        return None
+
+    new_objects = [obj for obj in bpy.context.scene.objects if obj not in before]
+    if not new_objects:
+        print(f"  WARNING: import of {label} produced no objects.")
+        return None
+
+    root = _find_root_object(new_objects)
+    print(f"  Imported {len(new_objects)} object(s) for {label}, root: {root.name}")
+    return root
+
+
+def _find_root_object(objects: list[bpy.types.Object]) -> bpy.types.Object:
+    """Return the topmost object with no parent among the given list."""
+    roots = [obj for obj in objects if obj.parent is None or obj.parent not in objects]
+    # Prefer armatures as root (for rigged characters)
+    armatures = [obj for obj in roots if obj.type == "ARMATURE"]
+    if armatures:
+        return armatures[0]
+    return roots[0] if roots else objects[0]
+
+
+def _apply_nla_animation(
+    subject: bpy.types.Object,
+    animation_path: str,
+    frame_end: int,
+) -> bool:
+    """Import a .glb animation and push its actions into the subject via NLA.
+
+    Returns True if at least one action was successfully applied.
+    """
+    before_actions = set(bpy.data.actions)
+    try:
+        bpy.ops.import_scene.gltf(filepath=animation_path)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ERROR importing animation from '{animation_path}': {exc}")
+        return False
+
+    new_actions = [a for a in bpy.data.actions if a not in before_actions]
+    if not new_actions:
+        print("  No new actions found in animation .glb.")
+        return False
+
+    # Remove the imported objects (we only want the actions)
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in list(bpy.context.scene.objects):
+        if obj.animation_data and obj.animation_data.action in new_actions:
+            obj.select_set(True)
+    bpy.ops.object.delete()
+
+    # Apply the first new action to the subject via NLA track
+    action = new_actions[0]
+    anim_data = subject.animation_data_create()
+    track = anim_data.nla_tracks.new()
+    track.name = f"director_{action.name}"
+    strip = track.strips.new(action.name, start=1, action=action)
+    strip.action_frame_start = action.frame_range[0]
+    strip.action_frame_end = min(action.frame_range[1], frame_end)
+    strip.frame_end = frame_end
+    return True
 
 
 def _create_rain_proxy() -> None:
@@ -377,127 +481,167 @@ def _create_atmosphere_proxy(spec: dict) -> None:
 
 
 def _render_control_passes(output_dir: Path, subject: bpy.types.Object) -> dict[str, str]:
+    """Render beauty, depth, normal and subject-mask passes via the Blender compositor.
+
+    Uses real view-layer passes (Z, Normal, IndexOB) so a single render call
+    produces all four images instead of the previous four material-override renders.
+    Pass keys are kept identical to the old proxy implementation so manifests
+    and any downstream tooling remain compatible.
+    """
     passes_dir = output_dir / "passes"
     passes_dir.mkdir(parents=True, exist_ok=True)
     scene = bpy.context.scene
     scene.frame_set(1)
+    frame = scene.frame_current
 
-    original_format = scene.render.image_settings.file_format
+    # Tag subject objects with pass_index = 1 for the IndexOB / ID Mask node
+    _mark_subject_for_passes(subject, pass_index=1)
+
+    # Enable real view-layer passes (Z depth, Surface Normal, Object Index)
+    _enable_view_layer_passes(scene)
+
+    # Build compositor node tree: Render Layers → one File Output per pass
+    _setup_compositor_pass_nodes(scene, passes_dir)
+
+    # One render call — compositor writes all pass files automatically
     original_filepath = scene.render.filepath
-    material_state = _snapshot_materials()
-    world_color = tuple(scene.world.color) if scene.world else (0.0, 0.0, 0.0)
-
+    original_format = scene.render.image_settings.file_format
     try:
         scene.render.image_settings.file_format = "PNG"
-        scene.render.filepath = str(passes_dir / "beauty_frame_0001")
-        bpy.ops.render.render(write_still=True)
-        beauty = _resolve_png(passes_dir / "beauty_frame_0001")
-
-        _assign_mask_materials(subject)
-        _set_world_color((0.0, 0.0, 0.0))
-        scene.render.filepath = str(passes_dir / "subject_mask_frame_0001")
-        bpy.ops.render.render(write_still=True)
-        subject_mask = _resolve_png(passes_dir / "subject_mask_frame_0001")
-
-        _assign_depth_proxy_materials()
-        scene.render.filepath = str(passes_dir / "depth_proxy_frame_0001")
-        bpy.ops.render.render(write_still=True)
-        depth_proxy = _resolve_png(passes_dir / "depth_proxy_frame_0001")
-
-        _assign_normal_proxy_materials()
-        scene.render.filepath = str(passes_dir / "normal_proxy_frame_0001")
-        bpy.ops.render.render(write_still=True)
-        normal_proxy = _resolve_png(passes_dir / "normal_proxy_frame_0001")
+        bpy.ops.render.render(write_still=False)
     finally:
-        _restore_materials(material_state)
-        _set_world_color(world_color)
-        scene.render.image_settings.file_format = original_format
         scene.render.filepath = original_filepath
+        scene.render.image_settings.file_format = original_format
+        _clear_compositor(scene)
+        _reset_subject_pass_index(subject)
 
+    # Compositor File Output appends the zero-padded frame number
+    frame_str = f"{frame:04d}"
     return {
-        "beauty": str(beauty),
-        "subject_mask": str(subject_mask),
-        "depth_proxy": str(depth_proxy),
-        "normal_proxy": str(normal_proxy),
+        "beauty":       str(_resolve_pass_file(passes_dir / f"beauty_frame_{frame_str}.png")),
+        "subject_mask": str(_resolve_pass_file(passes_dir / f"subject_mask_frame_{frame_str}.png")),
+        "depth_proxy":  str(_resolve_pass_file(passes_dir / f"depth_proxy_frame_{frame_str}.png")),
+        "normal_proxy": str(_resolve_pass_file(passes_dir / f"normal_proxy_frame_{frame_str}.png")),
     }
 
 
-def _snapshot_materials() -> dict[str, list[bpy.types.Material]]:
-    state = {}
-    for obj in _mesh_objects():
-        state[obj.name] = list(obj.data.materials)
-    return state
+def _mark_subject_for_passes(subject: bpy.types.Object, *, pass_index: int) -> None:
+    """Assign pass_index to the subject and every mesh skinned to it."""
+    subject.pass_index = pass_index
+    for child in subject.children_recursive:
+        child.pass_index = pass_index
+    # Also tag meshes that use this object as an Armature modifier target
+    for obj in bpy.context.scene.objects:
+        if obj.type == "MESH":
+            for mod in obj.modifiers:
+                if mod.type == "ARMATURE" and mod.object == subject:
+                    obj.pass_index = pass_index
+                    break
 
 
-def _restore_materials(state: dict[str, list[bpy.types.Material]]) -> None:
-    for obj in _mesh_objects():
-        obj.data.materials.clear()
-        for material in state.get(obj.name, []):
-            obj.data.materials.append(material)
+def _reset_subject_pass_index(subject: bpy.types.Object) -> None:
+    """Reset pass_index back to 0 after passes render."""
+    subject.pass_index = 0
+    for child in subject.children_recursive:
+        child.pass_index = 0
+    for obj in bpy.context.scene.objects:
+        if obj.type == "MESH" and obj.pass_index != 0:
+            obj.pass_index = 0
 
 
-def _assign_mask_materials(subject: bpy.types.Object) -> None:
-    white = _emission_material("pass_subject_white", (1.0, 1.0, 1.0, 1.0), 1.0)
-    black = _emission_material("pass_background_black", (0.0, 0.0, 0.0, 1.0), 1.0)
-    for obj in _mesh_objects():
-        _set_object_material(obj, white if _belongs_to_subject(obj, subject) else black)
+def _enable_view_layer_passes(scene: bpy.types.Scene) -> None:
+    """Enable the Z-depth, Surface Normal and Object Index view layer passes."""
+    vl = scene.view_layers[0]
+    vl.use_pass_z = True              # real Z depth buffer
+    vl.use_pass_normal = True         # surface normal vectors
+    vl.use_pass_object_index = True   # IndexOB — used for subject mask
+    vl.use_pass_combined = True       # beauty (always on, but explicit)
 
 
-def _assign_depth_proxy_materials() -> None:
-    camera = bpy.context.scene.camera
-    max_distance = 14.0
-    for obj in _mesh_objects():
-        distance = (obj.location - camera.location).length if camera else obj.location.length
-        shade = max(0.0, min(1.0, 1.0 - (distance / max_distance)))
-        material = _emission_material(f"pass_depth_{obj.name}", (shade, shade, shade, 1.0), 1.0)
-        _set_object_material(obj, material)
+def _setup_compositor_pass_nodes(scene: bpy.types.Scene, passes_dir: Path) -> None:
+    """Build a compositor node tree that writes each pass to a separate PNG file.
+
+    Node layout:
+        Render Layers
+            Image   → File Output  (beauty_frame_)
+            Depth   → Normalize → File Output  (depth_proxy_frame_)
+            Normal  → File Output  (normal_proxy_frame_)
+            IndexOB → ID Mask (index=1) → File Output  (subject_mask_frame_)
+
+    Blender appends the zero-padded frame number automatically, so slot path
+    "beauty_frame_" + frame 1 → "beauty_frame_0001.png".
+    """
+    scene.use_nodes = True
+    tree = scene.node_tree
+    nodes = tree.nodes
+    links = tree.links
+    nodes.clear()
+
+    # ── Source ───────────────────────────────────────────────────────────────
+    rl = nodes.new("CompositorNodeRLayers")
+    rl.location = (-300, 0)
+
+    # ── Beauty pass ──────────────────────────────────────────────────────────
+    beauty_out = _file_output_node(nodes, passes_dir, "beauty_frame_", x=200, y=300)
+    links.new(rl.outputs["Image"], beauty_out.inputs[0])
+
+    # ── Composite output (required so Blender doesn't warn about missing viewer)
+    composite = nodes.new("CompositorNodeComposite")
+    composite.location = (200, 150)
+    links.new(rl.outputs["Image"], composite.inputs["Image"])
+
+    # ── Depth pass: normalize raw Z to [0, 1] ────────────────────────────────
+    normalize = nodes.new("CompositorNodeNormalize")
+    normalize.location = (-50, 0)
+    links.new(rl.outputs["Depth"], normalize.inputs[0])
+    depth_out = _file_output_node(nodes, passes_dir, "depth_proxy_frame_", x=200, y=0)
+    links.new(normalize.outputs[0], depth_out.inputs[0])
+
+    # ── Normal pass ──────────────────────────────────────────────────────────
+    normal_out = _file_output_node(nodes, passes_dir, "normal_proxy_frame_", x=200, y=-200)
+    links.new(rl.outputs["Normal"], normal_out.inputs[0])
+
+    # ── Subject mask: IndexOB == 1 via ID Mask ────────────────────────────────
+    id_mask = nodes.new("CompositorNodeIDMask")
+    id_mask.location = (-50, -300)
+    id_mask.index = 1
+    id_mask.use_antialiasing = True
+    links.new(rl.outputs["IndexOB"], id_mask.inputs[0])
+    mask_out = _file_output_node(nodes, passes_dir, "subject_mask_frame_", x=200, y=-400)
+    links.new(id_mask.outputs[0], mask_out.inputs[0])
 
 
-def _assign_normal_proxy_materials() -> None:
-    for obj in _mesh_objects():
-        location = obj.location
-        color = (
-            _remap(location.x, -6.0, 6.0),
-            _remap(location.y, -6.0, 6.0),
-            _remap(location.z, 0.0, 6.0),
-            1.0,
-        )
-        material = _emission_material(f"pass_normal_proxy_{obj.name}", color, 1.0)
-        _set_object_material(obj, material)
+def _file_output_node(
+    nodes: bpy.types.NodeTree,
+    base_dir: Path,
+    slot_prefix: str,
+    *,
+    x: float,
+    y: float,
+) -> bpy.types.CompositorNodeOutputFile:
+    """Create a compositor File Output node with a single PNG slot."""
+    node = nodes.new("CompositorNodeOutputFile")
+    node.location = (x, y)
+    node.base_path = str(base_dir)
+    node.format.file_format = "PNG"
+    node.format.color_mode = "RGB"
+    node.format.color_depth = "8"
+    node.file_slots[0].path = slot_prefix
+    return node
 
 
-def _set_object_material(obj: bpy.types.Object, material: bpy.types.Material) -> None:
-    obj.data.materials.clear()
-    obj.data.materials.append(material)
+def _clear_compositor(scene: bpy.types.Scene) -> None:
+    """Remove compositor nodes and disable use_nodes to avoid affecting other renders."""
+    if scene.use_nodes and scene.node_tree:
+        scene.node_tree.nodes.clear()
+    scene.use_nodes = False
 
 
-def _mesh_objects() -> list[bpy.types.Object]:
-    return [obj for obj in bpy.context.scene.objects if obj.type == "MESH" and not obj.hide_render]
+def _resolve_pass_file(path: Path) -> Path:
+    """Return the path if it exists; otherwise fall back to the path without extension."""
+    return path if path.exists() else path.with_suffix("")
 
 
-def _belongs_to_subject(obj: bpy.types.Object, subject: bpy.types.Object) -> bool:
-    current = obj
-    while current is not None:
-        if current == subject:
-            return True
-        current = current.parent
-    return obj.name.startswith("subject_") or obj.name.startswith("humanoid_")
-
-
-def _set_world_color(color: tuple[float, float, float]) -> None:
-    if bpy.context.scene.world:
-        bpy.context.scene.world.color = color
-
-
-def _resolve_png(path_without_suffix: Path) -> Path:
-    candidate = path_without_suffix.with_suffix(".png")
-    return candidate if candidate.exists() else path_without_suffix
-
-
-def _remap(value: float, minimum: float, maximum: float) -> float:
-    if maximum == minimum:
-        return 0.0
-    return max(0.0, min(1.0, (value - minimum) / (maximum - minimum)))
 
 
 def _material(name: str, color: tuple[float, float, float, float]) -> bpy.types.Material:

@@ -179,6 +179,7 @@ def _render_shot(path: Path, output_root: Path, profile: str, index_path: Path, 
         print("error: blender was not found in PATH", file=sys.stderr)
         return 2
 
+    _warn_missing_asset_paths(path)
     job = create_render_job(path, output_root, profile=profile)
     command = _build_blender_command(job.job_shot, job.job_dir, profile=profile, blender=blender)
     append_index_event(index_path, job, "created", status="created")
@@ -273,6 +274,37 @@ def _read_json_if_exists(path: Path) -> dict | None:
         return None
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def _warn_missing_asset_paths(shot_path: Path) -> None:
+    """Print a warning for each asset whose path is declared but missing on disk."""
+    data = _read_json_if_exists(shot_path)
+    if not data:
+        return
+    assets_root = ROOT / "assets"
+    type_dirs = {
+        "character": "characters",
+        "environment": "environments",
+        "animation": "animations",
+    }
+    for ref_key, asset_dir in type_dirs.items():
+        asset_id = data.get(ref_key)
+        if not asset_id:
+            continue
+        manifest = assets_root / asset_dir / asset_id / "asset.json"
+        if not manifest.exists():
+            continue
+        manifest_data = _read_json_if_exists(manifest)
+        if not manifest_data:
+            continue
+        raw_path = manifest_data.get("path")
+        if raw_path:
+            resolved = (manifest.parent / raw_path).resolve()
+            if not resolved.exists():
+                print(
+                    f"warning: asset '{asset_id}' path not found: {resolved}",
+                    file=sys.stderr,
+                )
 
 
 def _build_blender_command(
