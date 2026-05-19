@@ -7,7 +7,15 @@ name = "ai-blender-director"
 version = "0.1.0"
 description = "Pipeline local para dirigir Blender desde especificaciones estructuradas."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "Pillow>=10.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "google-genai>=0.2.0",
+    "sqlalchemy>=2.0.0",
+    "websockets>=11.0.0",
+    "pydantic-settings>=2.0.0",
+]
 
 [project.scripts]
 ai-blender-director = "ai_blender_director.cli:main"

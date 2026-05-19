@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Blender Director</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/web/styles.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>AI Blender Director</h1>
+            <p class="subtitle">Autonomous 3D Pipeline Orchestrator</p>
+        </header>
+
+        <main>
+            <section class="panel input-panel glass">
+                <h2>New Shot</h2>
+                <form id="pipeline-form">
+                    <div class="form-group">
+                        <label for="prompt">Creative Prompt</label>
+                        <textarea id="prompt" rows="4" placeholder="Describe the scene... (e.g. A cyberpunk character walking in a neon-lit alley at night, tracking shot)" required></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="duration">Duration (sec)</label>
+                            <input type="number" id="duration" value="4" min="1" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="fps">FPS</label>
+                            <input type="number" id="fps" value="24" min="12" max="60">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="workflow">ComfyUI Workflow</label>
+                        <select id="workflow">
+                            <option value="stylization_v1">Stylization V1</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="btn-submit" class="btn-primary">
+                        <span class="btn-text">Run Auto-Director</span>
+                        <div class="spinner hidden" id="submit-spinner"></div>
+                    </button>
+                </form>
+            </section>
+
+            <section class="panel results-panel glass">
+                <div class="panel-header">
+                    <h2>Recent Jobs</h2>
+                    <button id="btn-refresh" class="btn-icon" title="Refresh">↻</button>
+                </div>
+                
+                <div id="jobs-container" class="jobs-list">
+                    <!-- Jobs will be injected here -->
+                    <div class="empty-state">No jobs found.</div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Job Details Modal Overlay -->
+        <div id="job-modal" class="modal-overlay hidden">
+            <div class="modal glass">
+                <div class="modal-header">
+                    <h2 id="modal-title">Job Details</h2>
+                    <button id="btn-close-modal" class="btn-icon">×</button>
+                </div>
+                <div class="modal-body" id="modal-content">
+                    <!-- Content injected via JS -->
+                </div>
+                <div class="terminal-container">
+                    <div class="terminal-header">Live Logs</div>
+                    <pre id="terminal-logs"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/web/app.js"></script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .jobs import RenderJob
+from .db import SessionLocal, JobRecord
 
 
 def append_index_event(
@@ -17,47 +17,59 @@ def append_index_event(
     returncode: int | None = None,
     extra: dict[str, Any] | None = None,
 ) -> None:
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    record: dict[str, Any] = {
-        "timestamp": datetime.now(UTC).isoformat(),
-        "event": event,
-        "status": status,
-        "job_id": job.job_id,
-        "job_dir": str(job.job_dir),
-        "source_shot": str(job.source_shot),
-        "job_shot": str(job.job_shot),
-        "profile": job.profile,
-    }
-    if returncode is not None:
-        record["returncode"] = returncode
-    if extra:
-        record.update(extra)
-
-    with index_path.open("a", encoding="utf-8") as file:
-        json.dump(record, file, ensure_ascii=False)
-        file.write("\n")
-
-
-def read_index(index_path: Path) -> list[dict[str, Any]]:
-    if not index_path.exists():
-        return []
-    records: list[dict[str, Any]] = []
-    with index_path.open("r", encoding="utf-8") as file:
-        for line in file:
-            if line.strip():
-                records.append(json.loads(line))
-    return records
+    # index_path is kept for backward compatibility with CLI, but we use SQLite.
+    with SessionLocal() as db:
+        # Check if job exists
+        record = db.query(JobRecord).filter(JobRecord.job_id == job.job_id).first()
+        if not record:
+            record = JobRecord(
+                job_id=job.job_id,
+                status=status,
+                event=event,
+                profile=job.profile,
+                job_dir=str(job.job_dir),
+                source_shot=str(job.source_shot),
+                returncode=returncode
+            )
+            db.add(record)
+        else:
+            record.status = status
+            record.event = event
+            if returncode is not None:
+                record.returncode = returncode
+        db.commit()
 
 
 def latest_job_records(index_path: Path) -> list[dict[str, Any]]:
-    latest: dict[str, dict[str, Any]] = {}
-    for record in read_index(index_path):
-        latest[record["job_id"]] = record
-    return sorted(latest.values(), key=lambda record: record["timestamp"], reverse=True)
+    with SessionLocal() as db:
+        records = db.query(JobRecord).order_by(JobRecord.timestamp.desc()).all()
+        return [
+            {
+                "job_id": r.job_id,
+                "status": r.status,
+                "event": r.event,
+                "profile": r.profile,
+                "job_dir": r.job_dir,
+                "source_shot": r.source_shot,
+                "returncode": r.returncode,
+                "timestamp": r.timestamp.isoformat() if r.timestamp else ""
+            }
+            for r in records
+        ]
 
 
 def find_job_record(index_path: Path, job_id: str) -> dict[str, Any] | None:
-    for record in latest_job_records(index_path):
-        if record["job_id"] == job_id or record["job_id"].startswith(job_id):
-            return record
-    return None
+    with SessionLocal() as db:
+        record = db.query(JobRecord).filter(JobRecord.job_id.startswith(job_id)).first()
+        if not record:
+            return None
+        return {
+            "job_id": record.job_id,
+            "status": record.status,
+            "event": record.event,
+            "profile": record.profile,
+            "job_dir": record.job_dir,
+            "source_shot": record.source_shot,
+            "returncode": record.returncode,
+            "timestamp": record.timestamp.isoformat() if record.timestamp else ""
+        }
