@@ -336,14 +336,22 @@ def _emission_material(name: str, color: tuple[float, float, float, float], stre
 
 
 def _write_manifest(spec: dict, shot_path: Path, output_dir: Path) -> None:
+    frame_start = 1
+    frame_end = int(spec["duration_seconds"] * spec["fps"])
     manifest = {
+        "job_id": output_dir.name,
         "shot": str(shot_path),
         "scene": spec["scene"],
         "duration_seconds": spec["duration_seconds"],
         "fps": spec["fps"],
-        "frame_count": int(spec["duration_seconds"] * spec["fps"]),
+        "frame_start": frame_start,
+        "frame_end": frame_end,
+        "frame_count": frame_end,
         "resolution": spec["resolution"],
         "output_prefix": str(output_dir / "shot_"),
+        "video": str(output_dir / f"shot_{frame_start:04d}-{frame_end:04d}.mp4"),
+        "blend_file": str(output_dir / "latest_preview.blend"),
+        "spec": spec,
     }
     with (output_dir / "manifest.json").open("w", encoding="utf-8") as file:
         json.dump(manifest, file, indent=2)

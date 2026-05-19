@@ -18,7 +18,7 @@ blender-command:
 	PYTHONPATH=$(PYTHONPATH) python3 -m ai_blender_director.cli blender-command $(SHOT) --output renders/previews
 
 render:
-	blender --background --python scripts/blender/render_shot.py -- $(SHOT) renders/previews
+	PYTHONPATH=$(PYTHONPATH) python3 -m ai_blender_director.cli render $(SHOT)
 
 smoke-render:
-	blender --background --python scripts/blender/render_shot.py -- $(SMOKE_SHOT) renders/previews
+	PYTHONPATH=$(PYTHONPATH) python3 -m ai_blender_director.cli render $(SMOKE_SHOT)

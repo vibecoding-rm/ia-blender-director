@@ -69,3 +69,18 @@ Los presets iniciales soportados son:
 - Sujetos: character, robot, vehicle, test subject.
 
 Esta capa es deliberadamente simple. Su valor es establecer el contrato que despues debe cumplir un LLM.
+
+## Render Jobs
+
+Cada render se ejecuta dentro de una carpeta unica:
+
+```text
+renders/previews/<timestamp>_<scene_slug>_<shot_slug>/
+  shot.json
+  job.json
+  manifest.json
+  latest_preview.blend
+  shot_0001-XXXX.mp4
+```
+
+Esto evita pisar renders anteriores y permite comparar previews, repetir trabajos y auditar que spec produjo cada salida.

@@ -54,8 +54,16 @@ PYTHONPATH=src python3 -m ai_blender_director.cli blender-command examples/shots
 Cuando Blender esté instalado:
 
 ```bash
-blender --background --python scripts/blender/render_shot.py -- examples/shots/cyberpunk_orbit.json renders/previews
+make render SHOT=examples/shots/cyberpunk_orbit.json
 ```
+
+Cada render crea una carpeta unica dentro de `renders/previews/` con:
+
+- `shot.json`: copia exacta del spec usado.
+- `job.json`: manifest creado antes de ejecutar Blender.
+- `manifest.json`: manifest escrito por Blender despues del render.
+- `latest_preview.blend`: escena generada.
+- `shot_0001-XXXX.mp4`: video renderizado.
 
 Atajos:
 
@@ -63,7 +71,7 @@ Atajos:
 make test
 make generate
 make validate
-make render SHOT=generated/shots/calle_cyberpunk_nocturna_con_lluvia_y_cámara_orbitando_al_personaje.json
+make render SHOT=generated/shots/calle_cyberpunk_nocturna_con_lluvia_y_camara_orbitando_al_personaje.json
 make smoke-render
 ```
 
