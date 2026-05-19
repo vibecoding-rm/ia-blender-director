@@ -5,6 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from .generator import write_generated_shot
 from .io import load_shot_spec
 from .models import ShotValidationError
 
@@ -20,6 +21,12 @@ def main(argv: list[str] | None = None) -> int:
     validate_parser = subparsers.add_parser("validate", help="Validate a shot JSON file.")
     validate_parser.add_argument("shot", type=Path)
 
+    generate_parser = subparsers.add_parser("generate", help="Generate a shot JSON from a text prompt.")
+    generate_parser.add_argument("prompt")
+    generate_parser.add_argument("--output-dir", type=Path, default=Path("generated/shots"))
+    generate_parser.add_argument("--duration", type=int, default=4)
+    generate_parser.add_argument("--fps", type=int, default=24)
+
     command_parser = subparsers.add_parser(
         "blender-command",
         help="Print the Blender command for rendering a shot.",
@@ -32,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "validate":
             return _validate(args.shot)
+        if args.command == "generate":
+            return _generate(args.prompt, args.output_dir, args.duration, args.fps)
         if args.command == "blender-command":
             return _blender_command(args.shot, args.output)
     except ShotValidationError as exc:
@@ -48,6 +57,21 @@ def _validate(path: Path) -> int:
     print(f"scene: {spec.scene}")
     print(f"duration: {spec.duration_seconds}s at {spec.fps} fps ({spec.frame_count} frames)")
     print(f"resolution: {spec.resolution.width}x{spec.resolution.height}")
+    return 0
+
+
+def _generate(prompt: str, output_dir: Path, duration_seconds: int, fps: int) -> int:
+    path = write_generated_shot(
+        prompt,
+        output_dir,
+        duration_seconds=duration_seconds,
+        fps=fps,
+    )
+    spec = load_shot_spec(path)
+    print(path)
+    print(f"scene: {spec.scene}")
+    print(f"camera: {spec.camera.movement}")
+    print(f"weather: {spec.weather or 'none'}")
     return 0
 
 

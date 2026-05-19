@@ -14,6 +14,8 @@
 - Movimientos de camara parametrizados.
 - Luces predefinidas.
 - Render de previews.
+- Generador local de `shot.json` desde prompts simples.
+- Manifiesto de render por plano.
 
 ## Semana 3: Generador de Specs
 

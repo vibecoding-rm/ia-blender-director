@@ -13,6 +13,9 @@ renders/final/*
 !renders/final/.gitkeep
 renders/**/*.blend
 
+generated/shots/*
+!generated/shots/.gitkeep
+
 *.blend1
 *.blend2
 *.mp4

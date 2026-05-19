@@ -33,6 +33,12 @@ En este equipo quedaron verificados Blender 4.0.2 y FFmpeg 6.1.1.
 
 ## Uso
 
+Generar un plano desde texto:
+
+```bash
+make generate PROMPT="calle cyberpunk nocturna con lluvia y cámara orbitando al personaje"
+```
+
 Validar un plano:
 
 ```bash
@@ -55,7 +61,9 @@ Atajos:
 
 ```bash
 make test
+make generate
 make validate
+make render SHOT=generated/shots/calle_cyberpunk_nocturna_con_lluvia_y_cámara_orbitando_al_personaje.json
 make smoke-render
 ```
 
@@ -73,4 +81,4 @@ docs/                      Arquitectura y roadmap
 
 ## Próximo Objetivo
 
-El siguiente paso técnico es hacer que un prompt genere un `shot.json` válido, primero con reglas locales y después con un LLM.
+El siguiente paso técnico es reemplazar el generador local por un `Director Agent` que produzca el mismo `shot.json` validado, sin darle permisos directos para ejecutar Python arbitrario.

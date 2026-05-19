@@ -48,3 +48,24 @@ La Fase 1 solo busca probar control programatico:
 - Renderizar imagen o animacion corta.
 
 No incluye todavia IA generativa, ComfyUI ni agentes multiples.
+
+## Fase 2
+
+La Fase 2 convierte texto en `ShotSpec` usando reglas locales:
+
+```text
+Prompt
+  -> generator.py
+  -> generated/shots/*.json
+  -> validator
+  -> render_shot.py
+```
+
+Los presets iniciales soportados son:
+
+- Escenas: cyberpunk street, procedural forest, interior room, desert stage, minimal stage.
+- Camaras: orbit, dolly, push_in, static.
+- Clima: rain, fog, snow.
+- Sujetos: character, robot, vehicle, test subject.
+
+Esta capa es deliberadamente simple. Su valor es establecer el contrato que despues debe cumplir un LLM.
