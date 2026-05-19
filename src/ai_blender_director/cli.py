@@ -18,6 +18,10 @@ def main(argv: list[str] | None = None) -> int:
     post_processing.register_parsers(subparsers)
     pipeline.register_parsers(subparsers)
 
+    serve_parser = subparsers.add_parser("serve", help="Start the FastAPI web server.")
+    serve_parser.add_argument("--host", default=None, help="Override server host from config.")
+    serve_parser.add_argument("--port", type=int, default=None, help="Override server port from config.")
+
     args = parser.parse_args(argv)
 
     try:
@@ -28,13 +32,13 @@ def main(argv: list[str] | None = None) -> int:
             return generation.handle_generate(args)
         if args.command == "create":
             return generation.handle_create(args)
-            
+
         # Render
         if args.command == "blender-command":
             return render.handle_blender_command(args)
         if args.command == "render":
             return render.handle_render(args)
-            
+
         # Management
         if args.command == "jobs":
             return management.handle_jobs(args)
@@ -42,17 +46,21 @@ def main(argv: list[str] | None = None) -> int:
             return management.handle_show(args)
         if args.command == "assets":
             return management.handle_assets(args)
-            
+
         # Post Processing
         if args.command == "comfy-render":
             return post_processing.handle_comfy_render(args)
         if args.command == "critic":
             return post_processing.handle_critic(args)
-            
+
         # Pipeline
         if args.command == "auto-director":
             return pipeline.handle_auto_director(args)
-            
+
+        # Server
+        if args.command == "serve":
+            return _handle_serve(args)
+
     except AssetValidationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -62,6 +70,18 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error(f"Unknown command: {args.command}")
     return 2
+
+
+def _handle_serve(args: argparse.Namespace) -> int:
+    import uvicorn
+    from .server import app
+    from .config import settings
+
+    host = args.host or settings.server_host
+    port = args.port or settings.server_port
+    print(f"Starting AI Blender Director server at http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port)
+    return 0
 
 
 if __name__ == "__main__":

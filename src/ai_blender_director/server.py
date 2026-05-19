@@ -10,14 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .index import find_job_record, latest_job_records
+from .index import find_job_record, latest_job_records, append_index_event
 from .generator import write_generated_shot
 from .jobs import create_render_job
 from .commands.render import _build_blender_command
 from .commands.post_processing import run_comfy_render
 from .commands.video import assemble_video
 from .critic import VisionCritic
-from .db import append_index_event
 from .config import settings
 
 # Setup paths
