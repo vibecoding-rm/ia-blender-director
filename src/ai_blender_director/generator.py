@@ -134,8 +134,10 @@ def _fallback_generate_shot(
     else:
         movement = "orbit"
 
-    if any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]):
-        character: str | None = "cotorra_v1"
+    if any(w in normalized for w in ["cerdo", "comandante", "portavoz", "pig"]):
+        character: str | None = "comandante_cerdo_v1"
+    elif any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]):
+        character = "cotorra_v1"
     elif any(w in normalized for w in ["personaje", "character", "hero", "heroe", "héroe", "persona", "hombre", "mujer", "soldado"]):
         character = "protagonista_v2"
     elif scene == "news studio":

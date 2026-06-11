@@ -1,0 +1,14 @@
+{
+  "id": "comandante_cerdo_v1",
+  "type": "character",
+  "name": "El Comandante Cerdo",
+  "source": "original_glb",
+  "path": "comandante_cerdo_v1.glb",
+  "metadata": {
+    "description": "Portavoz del régimen estilo claymation: cerdo en uniforme verde olivo con gorra de estrella roja, medallas, puro y dedo acusador. Arquetipo Rebelión en la Granja. Personaje original del canal (licencia propia).",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_cerdo.py"
+  }
+}

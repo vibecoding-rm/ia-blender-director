@@ -195,8 +195,10 @@ def _fallback_plan(
     elif "niebla" in normalized or "fog" in normalized:
         weather = "fog"
 
-    if any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]) or scene == "news studio":
-        character: str | None = "cotorra_v1"
+    if any(w in normalized for w in ["cerdo", "comandante", "portavoz", "pig"]):
+        character: str | None = "comandante_cerdo_v1"
+    elif any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]) or scene == "news studio":
+        character = "cotorra_v1"
     elif any(w in normalized for w in ["personaje", "character", "hero", "heroe"]):
         character = "protagonista_v2"
     else:

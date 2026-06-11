@@ -30,6 +30,9 @@ _BONES: list[tuple[str, tuple, tuple, str | None]] = [
     ("Tail",   (0, 0.24, 0.45),   (0, 0.46, 0.34),    "Body"),
     ("Leg.L",  (-0.10, 0, 0.25),  (-0.10, 0, 0.04),   "Root"),
     ("Leg.R",  (0.10, 0, 0.25),   (0.10, 0, 0.04),    "Root"),
+    # Huesos de ojos verticales: el parpadeo es scale Y (aplasta la esfera)
+    ("Eye.L",  (-0.105, -0.165, 1.015), (-0.105, -0.165, 1.075), "Head"),
+    ("Eye.R",  (0.105, -0.165, 1.015),  (0.105, -0.165, 1.075),  "Head"),
 ]
 
 
@@ -137,10 +140,10 @@ def build_mesh_parts(arm_obj: bpy.types.Object) -> list[bpy.types.Object]:
     _cone("Mesh_BeakLower", (0, -0.26, 0.845), 0.055, 0.15, beak_mat, "Beak",
           rot=(math.radians(-94), 0, 0))
 
-    # Eyes: big white spheres + pupils, slightly toward camera
-    for sign in (-1, 1):
-        _sphere(f"Mesh_Eye_{sign}", (sign * 0.105, -0.165, 1.015), 0.075, eye_white, "Head", segs=14, rings=10)
-        _sphere(f"Mesh_Pupil_{sign}", (sign * 0.105, -0.228, 1.018), 0.030, eye_black, "Head", segs=10, rings=8)
+    # Eyes: big white spheres + pupils, bound to their own bone so they blink
+    for side, sign in (("L", -1), ("R", 1)):
+        _sphere(f"Mesh_Eye_{side}", (sign * 0.105, -0.165, 1.015), 0.075, eye_white, f"Eye.{side}", segs=14, rings=10)
+        _sphere(f"Mesh_Pupil_{side}", (sign * 0.105, -0.228, 1.018), 0.030, eye_black, f"Eye.{side}", segs=10, rings=8)
 
     # Red crest: three little flames on top (nod to satire, very recognizable)
     for i, (dy, dz, r) in enumerate([(-0.04, 1.17, 0.055), (0.03, 1.20, 0.065), (0.10, 1.16, 0.05)]):
@@ -183,6 +186,16 @@ def _add_keyframes(fc: bpy.types.FCurve, keys: list[tuple[float, float]], interp
         fc.keyframe_points[i].interpolation = interp
 
 
+def _add_blinks(action: bpy.types.Action, blink_frames: list[int]) -> None:
+    """Parpadeo: aplastar los ojos (scale Y del hueso vertical) durante 3 frames."""
+    for side in ("L", "R"):
+        keys: list[tuple[float, float]] = [(1, 1.0)]
+        for frame in blink_frames:
+            keys += [(frame - 2, 1.0), (frame, 0.08), (frame + 2, 1.0)]
+        fc = _fcurve(action, f'pose.bones["Eye.{side}"].scale', 1)
+        _add_keyframes(fc, keys)
+
+
 def add_idle_action(arm_obj: bpy.types.Object) -> bpy.types.Action:
     action = bpy.data.actions.new(name="Idle")
     arm_obj.animation_data_create()
@@ -196,6 +209,8 @@ def add_idle_action(arm_obj: bpy.types.Object) -> bpy.types.Action:
 
     fc = _fcurve(action, 'pose.bones["Tail"].rotation_euler', 0)
     _add_keyframes(fc, [(1, 0), (30, math.radians(8)), (60, 0)])
+
+    _add_blinks(action, [14, 42])
     return action
 
 
@@ -208,7 +223,7 @@ def add_talk_action(arm_obj: bpy.types.Object) -> bpy.types.Action:
     beak_keys: list[tuple[float, float]] = []
     for cycle in range(4):
         start = 1 + cycle * 12
-        beak_keys += [(start, 0.0), (start + 4, math.radians(28)), (start + 9, math.radians(4))]
+        beak_keys += [(start, 0.0), (start + 4, math.radians(45)), (start + 9, math.radians(8))]
     beak_keys.append((48, 0.0))
     fc = _fcurve(action, 'pose.bones["Beak"].rotation_euler', 0)
     _add_keyframes(fc, beak_keys)
@@ -221,6 +236,8 @@ def add_talk_action(arm_obj: bpy.types.Object) -> bpy.types.Action:
 
     fc = _fcurve(action, 'pose.bones["Wing.R"].rotation_euler', 1)
     _add_keyframes(fc, [(1, 0), (16, math.radians(30)), (30, math.radians(8)), (42, math.radians(35)), (48, 0)])
+
+    _add_blinks(action, [10, 34])
     return action
 
 
@@ -280,14 +297,16 @@ def main() -> None:
     arm_obj = build_armature()
     mesh_parts = build_mesh_parts(arm_obj)
 
+    # Cada acción en su propia pista, todas desde el frame 1: el selector NLA
+    # del render mutea las que no usa, así que no se pisan entre sí.
     idle = add_idle_action(arm_obj)
     push_action_to_nla(arm_obj, idle, start=1)
 
     talk = add_talk_action(arm_obj)
-    push_action_to_nla(arm_obj, talk, start=80)
+    push_action_to_nla(arm_obj, talk, start=1)
 
     walk = add_walk_action(arm_obj)
-    push_action_to_nla(arm_obj, walk, start=160)
+    push_action_to_nla(arm_obj, walk, start=1)
 
     arm_obj.animation_data.action = None
 

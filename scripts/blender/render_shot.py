@@ -221,14 +221,35 @@ def _create_news_studio() -> None:
     panel.dimensions = (2.75, 0.04, 1.00)
     panel.data.materials.append(_emission_material("panel_cyan", (0.0, 0.55, 1.0, 1.0), 1.8))
 
-    # Three TV screens on backdrop
+    # Three TV screens on backdrop. If branded textures exist (generated with
+    # scripts/generate_screen_textures.py) they are used as emissive images;
+    # otherwise fall back to flat colored screens.
+    screens_dir = ASSETS_ROOT / "branding" / "screens"
+    screen_images = ["screen_left.png", "screen_center.png", "screen_right.png"]
     for i, (sx, sz) in enumerate([(-3.2, 2.3), (0.0, 2.6), (3.2, 2.3)]):
-        bpy.ops.mesh.primitive_cube_add(size=1, location=(sx, 4.9, sz))
+        bpy.ops.mesh.primitive_plane_add(size=1, location=(sx, 4.9, sz), rotation=(math.radians(90), 0, 0))
         screen = bpy.context.object
         screen.name = f"tv_screen_{i}"
-        screen.dimensions = (1.7, 0.07, 1.0)
-        color = (1.0, 0.18, 0.06, 1.0) if i != 1 else (0.08, 0.45, 1.0, 1.0)
-        screen.data.materials.append(_emission_material(f"screen_{i}", color, 3.5))
+        screen.scale = (1.7, 1.0, 1.0)
+        image_path = screens_dir / screen_images[i]
+        if image_path.exists():
+            screen.data.materials.append(
+                _image_emission_material(f"screen_{i}", str(image_path), 1.6)
+            )
+        else:
+            color = (1.0, 0.18, 0.06, 1.0) if i != 1 else (0.08, 0.45, 1.0, 1.0)
+            screen.data.materials.append(_emission_material(f"screen_{i}", color, 3.5))
+
+    # Desk microphone (small prop that sells the "set" feeling on close-ups)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=0.015, depth=0.35, location=(0.35, 1.45, 1.2))
+    mic_stand = bpy.context.object
+    mic_stand.name = "desk_mic_stand"
+    mic_stand.rotation_euler = (math.radians(-18), 0, 0)
+    mic_stand.data.materials.append(_material("mic_dark", (0.05, 0.05, 0.06, 1.0)))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=8, radius=0.045, location=(0.35, 1.40, 1.38))
+    mic_head = bpy.context.object
+    mic_head.name = "desk_mic_head"
+    mic_head.data.materials.append(_material("mic_foam", (0.65, 0.08, 0.10, 1.0)))
 
     # Side walls
     wall_mat = _material("studio_wall", (0.82, 0.84, 0.87, 1.0))
@@ -552,10 +573,14 @@ def _select_nla_animation(subject: bpy.types.Object, action_name: str, frame_end
     for track in matched_tracks:
         for strip in track.strips:
             if _matches(strip):
+                # Reposicionar al frame 1: los exportadores colocan las strips en
+                # offsets arbitrarios (p.ej. Talk en el frame 80) y fuera del rango
+                # del render la animación nunca se reproduce.
                 cycle = strip.action_frame_end - strip.action_frame_start
+                strip.frame_start = 1
+                strip.frame_end = frame_end
                 if cycle > 0:
                     strip.repeat = math.ceil(frame_end / cycle)
-                strip.frame_end = frame_end
     return True
 
 
@@ -1058,6 +1083,9 @@ def _apply_claymation_style() -> None:
     for obj in bpy.context.scene.objects:
         if obj.type != "MESH" or obj.hide_render:
             continue
+        # Las pantallas conservan su gráfico emisivo (un TV no es de arcilla)
+        if obj.name.startswith("tv_screen"):
+            continue
         for slot_index in range(max(1, len(obj.material_slots))):
             base_color = (0.8, 0.5, 0.35, 1.0)
             old = obj.material_slots[slot_index].material if obj.material_slots else None
@@ -1150,6 +1178,22 @@ def _clay_material(name: str, color: tuple[float, ...]) -> bpy.types.Material:
 def _material(name: str, color: tuple[float, float, float, float]) -> bpy.types.Material:
     material = bpy.data.materials.new(name)
     material.diffuse_color = color
+    return material
+
+
+def _image_emission_material(name: str, image_path: str, strength: float) -> bpy.types.Material:
+    """Material emisivo con textura de imagen (pantallas del estudio)."""
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    tex = nodes.new("ShaderNodeTexImage")
+    tex.image = bpy.data.images.load(image_path)
+    links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+    bsdf.inputs["Emission Strength"].default_value = strength
+    bsdf.inputs["Roughness"].default_value = 0.4
     return material
 
 
