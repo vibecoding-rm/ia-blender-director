@@ -77,3 +77,31 @@ make render SHOT=examples/shots/cyberpunk_orbit.json PROFILE=final
 ```bash
 PYTHONPATH=src python3 -m ai_blender_director.cli render examples/shots/smoke_test.json --profile preview --dry-run
 ```
+
+## Producir un episodio del Noticiero (Short completo)
+
+Pipeline completo: Director Agent → renders Blender → critic → postproducción
+(gancho con sting, narración TTS, whoosh en cortes, subtítulos quemados).
+
+```bash
+PYTHONPATH=src python3 -m ai_blender_director.cli auto-director \
+  "la cotorra presenta las noticias de cuba estilo claymation" \
+  --shots 6 --duration 3 --fps 12 --vertical --no-comfy \
+  --hook "TITULAR ABSURDO EN 4-7 PALABRAS" \
+  --narration "Guion satírico con estructura setup → escalada → punchline." \
+  --output-video renders/episodio_XXX.mp4
+```
+
+Flags de postproducción:
+
+- `--hook "TEXTO"`: tarjeta de apertura de 1.4s con titular gigante y sting.
+- `--narration "TEXTO"`: voz en español (piper-tts) + subtítulos quemados.
+- `--voice ruta.onnx`: otra voz piper (default: assets/voices/es_MX-claude-high.onnx).
+- `--vertical`: 720x1280 (Shorts/TikTok/Reels).
+- `--no-subtitles` / `--no-sfx` / `--no-comfy`: desactivar pasos.
+- Música de fondo: colocar `assets/audio/music_bed.mp3` (se mezcla a volumen bajo automáticamente).
+
+Con `--shots 6` o más y un prompt de noticiero, el plan alterna estudio/plaza
+con ángulos distintos por plano (un corte cada `--duration` segundos).
+
+La guía editorial completa está en `docs/estrategia_contenido.md`.

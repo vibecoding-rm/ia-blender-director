@@ -51,6 +51,11 @@ def mux_narration(video: Path, narration_wav: Path, output: Path) -> bool:
     return output.exists()
 
 
+def media_duration(path: Path) -> float | None:
+    """Duración en segundos de un archivo de audio/video (ffprobe)."""
+    return _duration(path)
+
+
 def _duration(path: Path) -> float | None:
     result = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],

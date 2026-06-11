@@ -38,6 +38,12 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
         help="Texto de narración: se sintetiza con piper-tts y se mezcla sobre el video final.",
     )
     pipeline_parser.add_argument("--voice", type=Path, default=None, help="Ruta a un modelo de voz piper (.onnx).")
+    pipeline_parser.add_argument(
+        "--hook", default=None,
+        help="Titular del gancho: tarjeta de apertura de 1.4s con texto gigante y sting.",
+    )
+    pipeline_parser.add_argument("--no-subtitles", action="store_true", help="No quemar subtítulos de la narración.")
+    pipeline_parser.add_argument("--no-sfx", action="store_true", help="No mezclar efectos de sonido.")
 
 
 def handle_auto_director(args: argparse.Namespace) -> int:
@@ -198,6 +204,8 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
 
     print(f"\n=== [4/4] ENSAMBLAJE MULTI-SHOT ({len(job_dirs)} plano(s)) ===")
     shot_videos: list[Path] = []
+    shot_durations: list[float] = []
+    first_spec = None
     for jd in job_dirs:
         spec = load_shot_spec(jd / "shot.json")
         comfy_dir = jd / "comfy_output"
@@ -205,12 +213,16 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
             shot_video = jd / "shot_video.mp4"
             if assemble_frames_sync(comfy_dir, shot_video, fps=spec.fps, pattern="*.png"):
                 shot_videos.append(shot_video)
+                shot_durations.append(float(spec.duration_seconds))
+                first_spec = first_spec or spec
                 print(f"  {shot_video.name} (estilizado)")
             continue
         # Sin estilización: usar directamente el video renderizado por Blender.
         rendered = sorted(jd.glob("shot_*.mp4"))
         if rendered:
             shot_videos.append(rendered[0])
+            shot_durations.append(float(spec.duration_seconds))
+            first_spec = first_spec or spec
             print(f"  {rendered[0].name}")
         else:
             print(f"  warning: no se encontró video renderizado en {jd}", file=sys.stderr)
@@ -224,24 +236,23 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         slug = slug_for_prompt(args.prompt)[:40]
         output_video = Path("renders") / f"plan_{slug}.mp4"
 
-    output_video.parent.mkdir(parents=True, exist_ok=True)
-    if not concat_videos_sync(shot_videos, output_video):
-        print("warning: falló la concatenación final", file=sys.stderr)
+    print("\n=== [5/5] POSTPRODUCCIÓN (gancho + audio + subtítulos) ===")
+    from ..postproduction import produce_short
+
+    final = produce_short(
+        shot_videos,
+        shot_durations,
+        output_video,
+        resolution=(first_spec.resolution.width, first_spec.resolution.height),
+        fps=int(first_spec.fps),
+        hook_title=args.hook,
+        narration_text=args.narration,
+        voice=args.voice,
+        subtitles=not args.no_subtitles,
+        sfx=not args.no_sfx,
+    )
+    if final is None:
+        print("error: falló la postproducción", file=sys.stderr)
         return 1
-    print(f"video final: {output_video}")
-
-    if args.narration:
-        from ..tts import synthesize, mux_narration
-
-        print("\n=== [5/5] NARRACIÓN TTS ===")
-        narration_wav = output_video.with_suffix(".narration.wav")
-        if synthesize(args.narration, narration_wav, voice=args.voice):
-            narrated = output_video.with_stem(output_video.stem + "_narrado")
-            if mux_narration(output_video, narration_wav, narrated):
-                print(f"video narrado: {narrated}")
-            else:
-                print("warning: falló la mezcla de narración", file=sys.stderr)
-        else:
-            print("warning: falló la síntesis de voz", file=sys.stderr)
-
+    print(f"video final: {final}")
     return 0

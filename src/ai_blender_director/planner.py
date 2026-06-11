@@ -276,6 +276,35 @@ def _fallback_plan(
             "environment": None,
         })
 
+    # Ritmo Shorts: con 4+ planos, secuencia de cortes variados (ángulo y
+    # escena cambian en cada plano — un "pattern interrupt" por corte).
+    if scene == "news studio" and character == "cotorra_v1" and n_shots >= 4:
+        variants = [
+            ("establishing", "news studio",  "static",  24, "presents the news",                "talk_v1", lighting_base),
+            ("close_up",     "news studio",  "push_in", 85, "talks directly to camera",          "talk_v1", lighting_base),
+            ("action",       "havana plaza", "dolly",   35, "waddles across the plaza reporting", "walk_v1", "warm caribbean daylight"),
+            ("medium",       "news studio",  "orbit",   50, "presents the news gesturing",       "talk_v1", lighting_base),
+            ("action",       "havana plaza", "orbit",   35, "looks around the plaza reporting",  "walk_v1", "warm caribbean daylight"),
+            ("close_up",     "news studio",  "push_in", 85, "delivers the punchline to camera",  "talk_v1", lighting_base),
+        ]
+        base = templates[0]
+        templates = []
+        for i in range(n_shots):
+            role, shot_scene, movement, lens, action, anim, light = variants[i % len(variants)]
+            shot = dict(base)
+            shot.update({
+                "_shot_role": role,
+                "scene": shot_scene,
+                "camera": {"movement": movement, "lens_mm": lens},
+                "lighting": light,
+                "subject": "cotorra news anchor" if shot_scene == "news studio" else "cotorra reporting from the street",
+                "action": action,
+                "animation": anim,
+                "environment": None,
+                "seed": _seed(prompt, i),
+            })
+            templates.append(shot)
+
     return templates[:n_shots]
 
 
