@@ -28,6 +28,10 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
         help="Number of shots; >1 uses the Director Agent to generate a multi-shot plan.",
     )
     pipeline_parser.add_argument("--output-video", type=Path, default=None)
+    pipeline_parser.add_argument(
+        "--no-comfy", action="store_true",
+        help="Skip the ComfyUI stylization step (e.g. when no ComfyUI server is available).",
+    )
 
 
 def handle_auto_director(args: argparse.Namespace) -> int:
@@ -174,7 +178,7 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
                 else:
                     print("  OK")
 
-        if not skip_comfy:
+        if not skip_comfy and not args.no_comfy:
             print("\n--- [COMFY] ---")
             run_comfy_render(args.index, job.job_id, args.workflow, args.comfy_url)
 
@@ -189,15 +193,19 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
     for jd in job_dirs:
         spec = load_shot_spec(jd / "shot.json")
         comfy_dir = jd / "comfy_output"
-        passes_dir = jd / "passes"
         if comfy_dir.exists() and any(comfy_dir.glob("*.png")):
-            frames_dir, pattern = comfy_dir, "*.png"
+            shot_video = jd / "shot_video.mp4"
+            if assemble_frames_sync(comfy_dir, shot_video, fps=spec.fps, pattern="*.png"):
+                shot_videos.append(shot_video)
+                print(f"  {shot_video.name} (estilizado)")
+            continue
+        # Sin estilización: usar directamente el video renderizado por Blender.
+        rendered = sorted(jd.glob("shot_*.mp4"))
+        if rendered:
+            shot_videos.append(rendered[0])
+            print(f"  {rendered[0].name}")
         else:
-            frames_dir, pattern = passes_dir, "beauty_frame_*.png"
-        shot_video = jd / "shot_video.mp4"
-        if assemble_frames_sync(frames_dir, shot_video, fps=spec.fps, pattern=pattern):
-            shot_videos.append(shot_video)
-            print(f"  {shot_video.name}")
+            print(f"  warning: no se encontró video renderizado en {jd}", file=sys.stderr)
 
     if not shot_videos:
         print("warning: no se encontraron frames para ensamblar", file=sys.stderr)

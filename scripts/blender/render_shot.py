@@ -1039,6 +1039,7 @@ def _apply_claymation_style() -> None:
     fingerprint-like noise bump, preserving each material's base color.
     Animation cadence is left to the spec (use fps 12 for stop-motion feel)."""
     print("  Applying claymation style override.")
+    image_color_cache: dict[str, tuple[float, float, float, float] | None] = {}
     for obj in bpy.context.scene.objects:
         if obj.type != "MESH" or obj.hide_render:
             continue
@@ -1049,7 +1050,11 @@ def _apply_claymation_style() -> None:
                 if old.use_nodes:
                     bsdf = old.node_tree.nodes.get("Principled BSDF")
                     if bsdf is not None:
-                        base_color = tuple(bsdf.inputs["Base Color"].default_value)
+                        base_input = bsdf.inputs["Base Color"]
+                        # Textured materials keep their color in the image, not
+                        # the socket default — use the texture's average color.
+                        sampled = _texture_average_color(base_input, image_color_cache)
+                        base_color = sampled if sampled else tuple(base_input.default_value)
                 else:
                     base_color = tuple(old.diffuse_color)
             clay = _clay_material(f"clay_{obj.name}_{slot_index}", base_color)
@@ -1057,6 +1062,53 @@ def _apply_claymation_style() -> None:
                 obj.material_slots[slot_index].material = clay
             else:
                 obj.data.materials.append(clay)
+
+
+def _texture_average_color(
+    base_input: bpy.types.NodeSocket,
+    cache: dict[str, tuple[float, float, float, float] | None],
+) -> tuple[float, float, float, float] | None:
+    """If the Base Color socket is fed (directly or through mix/factor nodes)
+    by an image texture, return the image's alpha-weighted average color
+    (subsampled for speed)."""
+    # Breadth-first walk upstream: glTF importers wrap the base texture in
+    # Mix/Multiply nodes, so the image is rarely linked directly.
+    queue = [link.from_node for link in base_input.links]
+    seen: set[str] = set()
+    image = None
+    while queue:
+        node = queue.pop(0)
+        if node.name in seen or len(seen) > 20:
+            continue
+        seen.add(node.name)
+        if node.type == "TEX_IMAGE" and node.image is not None:
+            image = node.image
+            break
+        for socket in node.inputs:
+            queue.extend(link.from_node for link in socket.links)
+    if image is not None:
+        if image.name in cache:
+            return cache[image.name]
+        pixel_count = len(image.pixels) // 4
+        if pixel_count == 0:
+            cache[image.name] = None
+            return None
+        pixels = image.pixels[:]
+        stride = max(1, pixel_count // 4096)
+        r = g = b = weight = 0.0
+        for i in range(0, pixel_count, stride):
+            j = i * 4
+            alpha = pixels[j + 3]
+            if alpha < 0.1:
+                continue
+            r += pixels[j] * alpha
+            g += pixels[j + 1] * alpha
+            b += pixels[j + 2] * alpha
+            weight += alpha
+        color = (r / weight, g / weight, b / weight, 1.0) if weight > 0 else None
+        cache[image.name] = color
+        return color
+    return None
 
 
 def _clay_material(name: str, color: tuple[float, ...]) -> bpy.types.Material:
