@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .commands import generation, management, pipeline, post_processing, render
+from .commands import batch, generation, management, pipeline, post_processing, render
 from .assets import AssetValidationError
 from .models import ShotValidationError
 
@@ -17,6 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     management.register_parsers(subparsers)
     post_processing.register_parsers(subparsers)
     pipeline.register_parsers(subparsers)
+    batch.register_parsers(subparsers)
 
     serve_parser = subparsers.add_parser("serve", help="Start the FastAPI web server.")
     serve_parser.add_argument("--host", default=None, help="Override server host from config.")
@@ -58,6 +59,8 @@ def main(argv: list[str] | None = None) -> int:
         # Pipeline
         if args.command == "auto-director":
             return pipeline.handle_auto_director(args)
+        if args.command == "batch":
+            return batch.handle_batch(args)
 
         # Server
         if args.command == "serve":

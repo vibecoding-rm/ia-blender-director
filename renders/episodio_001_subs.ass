@@ -1,0 +1,25 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 720
+PlayResY: 1280
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Shorts,DejaVu Sans,57,&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,230,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.40,0:00:02.25,Shorts,,0,0,0,,ÚLTIMA HORA:
+Dialogue: 0,0:00:02.25,0:00:04.09,Shorts,,0,0,0,,EL GOBIERNO INFORMA QUE EN
+Dialogue: 0,0:00:04.09,0:00:05.87,Shorts,,0,0,0,,CUBA NO HAY APAGONES, HAY
+Dialogue: 0,0:00:05.87,0:00:07.71,Shorts,,0,0,0,,NOCHES ROMÁNTICAS A LA LUZ
+Dialogue: 0,0:00:07.71,0:00:08.63,Shorts,,0,0,0,,DE LAS VELAS.
+Dialogue: 0,0:00:08.63,0:00:10.12,Shorts,,0,0,0,,TAMPOCO FALTA COMIDA:
+Dialogue: 0,0:00:10.12,0:00:12.32,Shorts,,0,0,0,,HAY DIETA COLECTIVA VOLUNTARIA.
+Dialogue: 0,0:00:12.32,0:00:14.16,Shorts,,0,0,0,,Y EL TRANSPORTE ESTÁ MEJOR
+Dialogue: 0,0:00:14.16,0:00:14.87,Shorts,,0,0,0,,QUE NUNCA:
+Dialogue: 0,0:00:14.87,0:00:17.35,Shorts,,0,0,0,,CAMINAR DIEZ KILÓMETROS ES GIMNASIO
+Dialogue: 0,0:00:17.35,0:00:17.85,Shorts,,0,0,0,,GRATIS.
+Dialogue: 0,0:00:17.85,0:00:19.41,Shorts,,0,0,0,,Y ASÍ ESTÁN LAS COSAS:
+Dialogue: 0,0:00:19.41,0:00:20.82,Shorts,,0,0,0,,TOTALMENTE NORMALES.
