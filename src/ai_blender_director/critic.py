@@ -2,13 +2,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
-from PIL import Image
+from PIL import Image, ImageStat
+
 
 @dataclass
 class CriticConfig:
     min_occupancy_ratio: float = 0.10
     framing_margin_ratio: float = 0.20
     min_avg_luminance: float = 40.0
+    max_avg_luminance: float = 220.0   # overexposure threshold
+    min_contrast_std: float = 25.0     # global std of luminance
+    max_border_subject_ratio: float = 0.35  # subject pixels in outer 10% zone
 
 
 @dataclass
@@ -39,19 +43,19 @@ class VisionCritic:
     def analyze(self) -> List[CriticFeedback]:
         """Run all heuristic rules and return the feedback."""
         feedback = []
-        
-        distance_fb = self.analyze_distance()
-        if distance_fb:
-            feedback.append(distance_fb)
-            
-        framing_fb = self.analyze_framing()
-        if framing_fb:
-            feedback.append(framing_fb)
-            
-        lighting_fb = self.analyze_lighting()
-        if lighting_fb:
-            feedback.append(lighting_fb)
-            
+
+        for rule in (
+            self.analyze_distance,
+            self.analyze_framing,
+            self.analyze_lighting,
+            self.analyze_overexposure,
+            self.analyze_contrast,
+            self.analyze_edge_coverage,
+        ):
+            result = rule()
+            if result:
+                feedback.append(result)
+
         return feedback
 
     def analyze_distance(self) -> CriticFeedback | None:
@@ -131,29 +135,104 @@ class VisionCritic:
         """Rule: if the average luminance of the subject is too low, it's too dark."""
         mask_pixels = self.mask_img.load()
         beauty_pixels = self.beauty_img.load()
-        
+
         total_luminance = 0
         count = 0
-        
+
         for y in range(self.height):
             for x in range(self.width):
                 if mask_pixels[x, y] > 0:
                     r, g, b = beauty_pixels[x, y]
-                    # Standard luminance formula
                     lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
                     total_luminance += lum
                     count += 1
-                    
+
         if count == 0:
             return None
-            
+
         avg_luminance = total_luminance / count
-        
+
         if avg_luminance < self.config.min_avg_luminance:
             return CriticFeedback(
                 category="Lighting",
                 level="WARNING",
-                message=f"Subject is too dark (average luminance {avg_luminance:.1f}/255). Consider adding lights."
+                message=f"Subject is too dark (avg luminance {avg_luminance:.1f}/255). Consider adding lights.",
             )
-            
+
+        return None
+
+    def analyze_overexposure(self) -> CriticFeedback | None:
+        """Rule: if the subject's average luminance is too high, it's blown out."""
+        mask_pixels = self.mask_img.load()
+        beauty_pixels = self.beauty_img.load()
+
+        total_luminance = 0
+        count = 0
+
+        for y in range(self.height):
+            for x in range(self.width):
+                if mask_pixels[x, y] > 0:
+                    r, g, b = beauty_pixels[x, y]
+                    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                    total_luminance += lum
+                    count += 1
+
+        if count == 0:
+            return None
+
+        avg_luminance = total_luminance / count
+
+        if avg_luminance > self.config.max_avg_luminance:
+            return CriticFeedback(
+                category="Lighting",
+                level="WARNING",
+                message=f"Subject is overexposed (avg luminance {avg_luminance:.1f}/255). Reduce light intensity.",
+            )
+
+        return None
+
+    def analyze_contrast(self) -> CriticFeedback | None:
+        """Rule: if the global image contrast (std of luminance) is too low, the scene looks flat."""
+        gray = self.beauty_img.convert("L")
+        stat = ImageStat.Stat(gray)
+        std = stat.stddev[0]
+
+        if std < self.config.min_contrast_std:
+            return CriticFeedback(
+                category="Contrast",
+                level="SUGGESTION",
+                message=f"Low global contrast (std {std:.1f}). Consider stronger key/fill light ratio or HDR.",
+            )
+
+        return None
+
+    def analyze_edge_coverage(self) -> CriticFeedback | None:
+        """Rule: if too many subject pixels are in the outer border zone, the subject is being cropped."""
+        border = 0.10
+        bx = int(self.width * border)
+        by = int(self.height * border)
+
+        mask_pixels = self.mask_img.load()
+        total_subject = 0
+        border_subject = 0
+
+        for y in range(self.height):
+            for x in range(self.width):
+                if mask_pixels[x, y] > 0:
+                    total_subject += 1
+                    if x < bx or x >= self.width - bx or y < by or y >= self.height - by:
+                        border_subject += 1
+
+        if total_subject == 0:
+            return None
+
+        ratio = border_subject / total_subject
+
+        if ratio > self.config.max_border_subject_ratio:
+            return CriticFeedback(
+                category="Framing",
+                level="WARNING",
+                message=f"{ratio:.0%} of subject pixels are near the frame edge. Subject may be cropped.",
+            )
+
         return None

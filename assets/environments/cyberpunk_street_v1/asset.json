@@ -1,10 +1,13 @@
 {
   "id": "cyberpunk_street_v1",
   "type": "environment",
-  "name": "Cyberpunk Street Placeholder v1",
-  "source": "procedural_placeholder",
-  "path": null,
+  "name": "Cyberpunk Street v1",
+  "source": "procedural_glb",
+  "path": "cyberpunk_street_v1.glb",
   "metadata": {
-    "description": "Procedural neon street proxy used until a real environment asset is imported."
+    "description": "Procedural cyberpunk street with buildings, neon signs, street lamps, and wet reflective ground.",
+    "export_script": "scripts/blender/export_cyberpunk_street.py",
+    "objects": ["Ground", "Buildings", "NeonSigns", "StreetLamps", "PavementLines"],
+    "dimensions": {"x": 20, "y": 20, "units": "meters"}
   }
 }

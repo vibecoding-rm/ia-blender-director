@@ -1,0 +1,13 @@
+{
+  "id": "protagonista_v2",
+  "type": "character",
+  "name": "Protagonista v2 (Soldier)",
+  "source": "threejs_examples_glb",
+  "path": "protagonista_v2.glb",
+  "metadata": {
+    "description": "Personaje humanoide real con malla skineada (vanguard) y armature completo. Reemplaza al proxy procedural protagonista_v1.",
+    "default_scale": 1.0,
+    "embedded_animations": ["Idle", "Run", "TPose", "Walk"],
+    "origin": "https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Soldier.glb"
+  }
+}

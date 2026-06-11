@@ -11,7 +11,7 @@
   },
   "2": {
     "inputs": {
-      "text": "masterpiece, highly detailed, photorealistic",
+      "text": "masterpiece, highly detailed, photorealistic, cinematic lighting",
       "clip": [
         "3",
         1
@@ -60,12 +60,12 @@
         0
       ],
       "positive": [
-        "2",
+        "11",
         0
       ],
       "negative": [
-        "6",
-        0
+        "11",
+        1
       ],
       "latent_image": [
         "4",
@@ -79,7 +79,7 @@
   },
   "6": {
     "inputs": {
-      "text": "bad quality, blurry"
+      "text": "bad quality, blurry, noisy, flat lighting, overexposed"
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
@@ -113,6 +113,52 @@
     "class_type": "SaveImage",
     "_meta": {
       "title": "Save Image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "image": "depth_proxy_frame.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image (Depth)"
+    }
+  },
+  "10": {
+    "inputs": {
+      "control_net_name": "control_v11f1p_sd15_depth.pth"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "Load ControlNet Depth"
+    }
+  },
+  "11": {
+    "inputs": {
+      "strength": 0.7,
+      "start_percent": 0.0,
+      "end_percent": 1.0,
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "6",
+        0
+      ],
+      "control_net": [
+        "10",
+        0
+      ],
+      "image": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "Apply ControlNet Depth"
     }
   }
 }

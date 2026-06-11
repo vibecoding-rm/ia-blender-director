@@ -32,6 +32,8 @@ def main(argv: list[str] | None = None) -> int:
             return generation.handle_generate(args)
         if args.command == "create":
             return generation.handle_create(args)
+        if args.command == "plan":
+            return generation.handle_plan(args)
 
         # Render
         if args.command == "blender-command":

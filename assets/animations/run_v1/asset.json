@@ -1,10 +1,14 @@
 {
   "id": "run_v1",
   "type": "animation",
-  "name": "Run Placeholder v1",
-  "source": "procedural_placeholder",
+  "name": "Run v1",
+  "source": "embedded_in_character_glb",
   "path": null,
   "metadata": {
-    "description": "Simple faster movement proxy animation."
+    "description": "12-frame run cycle embedded in protagonista_v1.glb. Full arm/leg swing with 45-degree joint angles.",
+    "action_name": "Run",
+    "fps": 24,
+    "frame_count": 12,
+    "character_glb": "assets/characters/protagonista_v1/protagonista_v1.glb"
   }
 }

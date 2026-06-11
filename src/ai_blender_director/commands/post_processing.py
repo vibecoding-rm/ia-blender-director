@@ -48,7 +48,7 @@ def run_comfy_render(index_path: Path, job_id: str, workflow_name: str, comfy_ur
         print(f"error: beauty pass not found in manifest for job {job_id}", file=sys.stderr)
         return 2
 
-    beauty_path = job_dir / beauty_pass
+    beauty_path = Path(beauty_pass)
     if not beauty_path.exists():
         print(f"error: beauty pass file not found at {beauty_path}", file=sys.stderr)
         return 2
@@ -59,32 +59,45 @@ def run_comfy_render(index_path: Path, job_id: str, workflow_name: str, comfy_ur
         print(f"error: workflow not found at {workflow_path}", file=sys.stderr)
         return 2
 
+    depth_pass = passes.get("depth_proxy")
+    depth_path = Path(depth_pass) if depth_pass else None
+
     print(f"uploading {beauty_path.name} to ComfyUI at {comfy_url}...")
     client = ComfyClient(comfy_url)
-    
+    subfolder = f"ai_director_{job_id}"
+
     max_retries = 3
     for attempt in range(1, max_retries + 1):
         try:
-            upload_res = client.upload_image(beauty_path, subfolder=f"ai_director_{job_id}")
-            uploaded_name = upload_res.get("name")
-            uploaded_subfolder = upload_res.get("subfolder", f"ai_director_{job_id}")
-            
-            for node_id, node_data in workflow.items():
-                if node_data.get("class_type") == "LoadImage":
-                    node_data["inputs"]["image"] = f"{uploaded_subfolder}/{uploaded_name}"
-            
+            beauty_res = client.upload_image(beauty_path, subfolder=subfolder)
+            beauty_remote = f"{beauty_res.get('subfolder', subfolder)}/{beauty_res.get('name')}"
+
+            depth_remote = None
+            if depth_path and depth_path.exists():
+                depth_res = client.upload_image(depth_path, subfolder=subfolder)
+                depth_remote = f"{depth_res.get('subfolder', subfolder)}/{depth_res.get('name')}"
+
+            for node_data in workflow.values():
+                if node_data.get("class_type") != "LoadImage":
+                    continue
+                title = node_data.get("_meta", {}).get("title", "")
+                if "Depth" in title and depth_remote:
+                    node_data["inputs"]["image"] = depth_remote
+                else:
+                    node_data["inputs"]["image"] = beauty_remote
+
             print("queuing prompt...")
             prompt_res = client.queue_prompt(workflow)
             prompt_id = prompt_res.get("prompt_id")
             print(f"prompt queued, id: {prompt_id}. waiting for completion...")
-            
+
             output_dir = job_dir / "comfy_output"
             downloaded = client.process_and_download(prompt_id, output_dir)
             print(f"downloaded {len(downloaded)} images to {output_dir}")
             for p in downloaded:
                 print(f"  {p}")
             return 0
-                
+
         except Exception as exc:
             print(f"attempt {attempt}/{max_retries} failed interacting with ComfyUI: {exc}", file=sys.stderr)
             if attempt < max_retries:
@@ -113,9 +126,9 @@ def run_critic(index_path: Path, job_id: str) -> int:
         print(f"error: beauty or subject_mask pass not found in manifest for job {job_id}", file=sys.stderr)
         return 2
 
-    beauty_path = job_dir / beauty_pass
-    mask_path = job_dir / mask_pass
-    
+    beauty_path = Path(beauty_pass)
+    mask_path = Path(mask_pass)
+
     if not beauty_path.exists() or not mask_path.exists():
         print("error: missing pass files", file=sys.stderr)
         return 2

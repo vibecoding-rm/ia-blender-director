@@ -23,36 +23,81 @@
 
         <main>
             <section class="panel input-panel glass">
-                <h2>New Shot</h2>
-                <form id="pipeline-form">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="single">Single Shot</button>
+                    <button class="tab-btn" data-tab="director">Director Plan</button>
+                </div>
+
+                <!-- Single Shot Tab -->
+                <div class="tab-content active" id="tab-single">
+                    <form id="pipeline-form">
+                        <div class="form-group">
+                            <label for="prompt">Creative Prompt</label>
+                            <textarea id="prompt" rows="4" placeholder="Describe the scene... (e.g. A cyberpunk character walking in a neon-lit alley at night, tracking shot)" required></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="duration">Duration (sec)</label>
+                                <input type="number" id="duration" value="4" min="1" max="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="fps">FPS</label>
+                                <input type="number" id="fps" value="24" min="12" max="60">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="workflow">ComfyUI Workflow</label>
+                            <select id="workflow">
+                                <option value="stylization_v1">Stylization V1</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" id="btn-submit" class="btn-primary">
+                            <span class="btn-text">Run Auto-Director</span>
+                            <div class="spinner hidden" id="submit-spinner"></div>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Director Plan Tab -->
+                <div class="tab-content" id="tab-director">
                     <div class="form-group">
-                        <label for="prompt">Creative Prompt</label>
-                        <textarea id="prompt" rows="4" placeholder="Describe the scene... (e.g. A cyberpunk character walking in a neon-lit alley at night, tracking shot)" required></textarea>
+                        <label for="director-prompt">Video Idea</label>
+                        <textarea id="director-prompt" rows="4" placeholder="Describe your video concept... (e.g. A cyberpunk hero walks through neon-lit streets in the rain)"></textarea>
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="duration">Duration (sec)</label>
-                            <input type="number" id="duration" value="4" min="1" max="10">
+                            <label for="director-shots">Number of Shots</label>
+                            <select id="director-shots">
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="fps">FPS</label>
-                            <input type="number" id="fps" value="24" min="12" max="60">
+                            <label for="director-duration">Duration per Shot (sec)</label>
+                            <input type="number" id="director-duration" value="4" min="1" max="10">
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="workflow">ComfyUI Workflow</label>
-                        <select id="workflow">
-                            <option value="stylization_v1">Stylization V1</option>
-                        </select>
+                    <button type="button" id="btn-preview-plan" class="btn-secondary">
+                        <span id="preview-btn-text">Preview Plan</span>
+                        <div class="spinner hidden" id="preview-spinner"></div>
+                    </button>
+
+                    <div class="plan-preview hidden" id="plan-preview">
+                        <!-- Shot cards injected here -->
                     </div>
 
-                    <button type="submit" id="btn-submit" class="btn-primary">
-                        <span class="btn-text">Run Auto-Director</span>
-                        <div class="spinner hidden" id="submit-spinner"></div>
+                    <button type="button" id="btn-render-plan" class="btn-primary hidden" style="margin-top: 0.5rem;">
+                        <span id="render-plan-btn-text">Render All Shots</span>
+                        <div class="spinner hidden" id="render-plan-spinner"></div>
                     </button>
-                </form>
+                </div>
             </section>
 
             <section class="panel results-panel glass">
@@ -60,7 +105,7 @@
                     <h2>Recent Jobs</h2>
                     <button id="btn-refresh" class="btn-icon" title="Refresh">↻</button>
                 </div>
-                
+
                 <div id="jobs-container" class="jobs-list">
                     <!-- Jobs will be injected here -->
                     <div class="empty-state">No jobs found.</div>

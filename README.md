@@ -29,7 +29,7 @@ Este repo arranca con un MVP:
 - Blender instalado y disponible como `blender` en el PATH para renderizar.
 - FFmpeg para inspeccionar, ensamblar y convertir videos.
 
-En este equipo quedaron verificados Blender 4.0.2 y FFmpeg 6.1.1.
+En este equipo quedaron verificados Blender 4.2.21 LTS (instalado en `/opt/blender-4.2.21-linux-x64`, symlink en `/usr/local/bin/blender`) y FFmpeg 8.1.1.
 
 ## Uso
 

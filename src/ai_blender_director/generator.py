@@ -7,78 +7,74 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
-from google import genai
-from google.genai import types
-
 from .models import ShotSpec
 
-
 DEFAULT_RESOLUTION = {"width": 1280, "height": 720}
+_OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-
-class LLMShotSpec(BaseModel):
-    """Schema for the LLM to generate the shot details."""
-    scene: str = Field(description="The name of the scene or environment. Keep it short (e.g. 'cyberpunk street', 'dark forest').")
-    style: str = Field(description="The cinematic style (e.g. 'anime cinematic', 'realistic neon noir', 'dark horror').")
-    camera_movement: str = Field(description="Camera movement (e.g. 'orbit', 'dolly', 'push_in', 'static').")
-    camera_lens_mm: int = Field(description="Camera lens focal length in mm (e.g. 24, 35, 50, 85).")
-    lighting: str = Field(description="Lighting setup (e.g. 'red and cyan neon with soft volumetric ambience').")
-    subject: str = Field(description="The main subject of the shot (e.g. 'prototype hero character', 'placeholder vehicle').")
-    action: str = Field(description="What the subject is doing (e.g. 'walks forward and turns toward camera').")
-    weather: str | None = Field(description="Weather condition (e.g. 'rain', 'fog', 'snow') or null if none.")
-    character_asset: str | None = Field(description="The asset ID of the character to load. If it's a human character, return 'protagonista_v1'. Otherwise null.")
-    environment_asset: str | None = Field(description="The asset ID of the environment. If cyberpunk, return 'cyberpunk_street_v1'. If forest, return 'forest_v1'. Otherwise null.")
-    animation_asset: str | None = Field(description="The asset ID of the animation. If walking, return 'walk_v1'. If running, return 'run_v1'. If idle, return 'idle_v1'. Otherwise null.")
+_SHOT_SCHEMA = {
+    "scene": "short scene/environment name (e.g. 'cyberpunk street', 'dark forest')",
+    "style": "cinematic style (e.g. 'anime cinematic', 'realistic neon noir', 'dark horror')",
+    "camera_movement": "one of: orbit, dolly, push_in, static",
+    "camera_lens_mm": "integer focal length in mm: 24, 35, 50, or 85",
+    "lighting": "lighting description (e.g. 'red and cyan neon with soft volumetric ambience')",
+    "subject": "main subject (e.g. 'prototype hero character')",
+    "action": "what the subject is doing (e.g. 'walks forward and turns toward camera')",
+    "weather": "one of: rain, fog, snow — or null if none",
+    "character_asset": "'protagonista_v2' for humans, null otherwise",
+    "environment_asset": "'cyberpunk_street_v1', 'forest_v1', or null",
+    "animation_asset": "'walk_v1', 'run_v1', 'idle_v1', or null",
+}
 
 
 def generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int = 24) -> dict[str, Any]:
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        print("warning: GEMINI_API_KEY is not set. Using basic fallback generator.", file=sys.stderr)
+        print("warning: OPENROUTER_API_KEY is not set. Using basic fallback generator.", file=sys.stderr)
         return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps)
-        
+
     try:
-        client = genai.Client()
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=f"You are an AI Blender Director. Given the following user prompt, generate a cinematic shot specification.\nPrompt: {prompt}",
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=LLMShotSpec,
-                temperature=0.7,
-            ),
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
+        system = (
+            "You are an AI Blender Director. Reply ONLY with a valid JSON object — no markdown, no explanation.\n"
+            f"Required fields and their meaning:\n{json.dumps(_SHOT_SCHEMA, indent=2)}"
         )
-        
-        # Parse the pydantic model returned by Gemini
-        llm_spec: LLMShotSpec = response.parsed
-        
+        response = client.chat.completions.create(
+            model=_OPENROUTER_MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": f"Generate a cinematic shot for: {prompt}"},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+        )
+        data = json.loads(response.choices[0].message.content)
         shot = {
-            "scene": llm_spec.scene,
-            "style": llm_spec.style,
+            "scene": data["scene"],
+            "style": data["style"],
             "duration_seconds": duration_seconds,
             "fps": fps,
             "resolution": DEFAULT_RESOLUTION,
             "camera": {
-                "movement": llm_spec.camera_movement,
-                "lens_mm": llm_spec.camera_lens_mm,
+                "movement": data.get("camera_movement", "orbit"),
+                "lens_mm": int(data.get("camera_lens_mm", 35)),
             },
-            "lighting": llm_spec.lighting,
-            "subject": llm_spec.subject,
-            "action": llm_spec.action,
-            "weather": llm_spec.weather,
+            "lighting": data["lighting"],
+            "subject": data["subject"],
+            "action": data["action"],
+            "weather": data.get("weather"),
             "seed": _seed_from_prompt(prompt),
-            "character": llm_spec.character_asset,
-            "environment": llm_spec.environment_asset,
-            "animation": llm_spec.animation_asset,
+            "character": data.get("character_asset"),
+            "environment": data.get("environment_asset"),
+            "animation": data.get("animation_asset"),
         }
-        
-        # Validate against our actual dataclass models
         ShotSpec.from_dict(shot)
         return shot
-        
-    except Exception as e:
-        print(f"error calling Gemini API: {e}. Using fallback generator.", file=sys.stderr)
+
+    except Exception as exc:
+        print(f"error calling OpenRouter API: {exc}. Using fallback generator.", file=sys.stderr)
         return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps)
 
 
@@ -98,6 +94,9 @@ def _fallback_generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int 
         scene = "minimal cinematic stage"
         style = "cinematic concept preview"
         environment = None
+
+    if any(w in normalized for w in ["plastilina", "claymation", "clay", "stop motion", "stop-motion"]):
+        style = f"claymation stop motion, {style}"
 
     if "lluvia" in normalized or "rain" in normalized:
         weather: str | None = "rain"
@@ -129,7 +128,9 @@ def _fallback_generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int 
         "action": "moves across the frame",
         "weather": weather,
         "seed": _seed_from_prompt(normalized),
-        "character": "protagonista_v1" if "personaje" in normalized else None,
+        "character": "protagonista_v2" if any(
+            w in normalized for w in ["personaje", "character", "hero", "heroe", "héroe", "persona", "hombre", "mujer", "soldado"]
+        ) else None,
         "environment": environment,
         "animation": "walk_v1" if "camina" in normalized else None,
     }

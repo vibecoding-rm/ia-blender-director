@@ -25,3 +25,6 @@ generated/shots/*
 *.mkv
 
 .env
+
+renders/jobs.db
+renders/cuba_news_2026/

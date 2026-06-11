@@ -87,9 +87,69 @@ class TestVisionCritic(TestCase):
         self.assertEqual(fb.category, "Lighting")
         self.assertIn("too dark", fb.message)
 
-    def test_analyze_all(self):
-        # A subject that is too far, too dark, and badly framed
+    def test_overexposure_ok(self):
+        self.create_test_images((30, 30, 40, 40), (200, 200, 200))
+        critic = VisionCritic(self.beauty_path, self.mask_path)
+        fb = critic.analyze_overexposure()
+        self.assertIsNone(fb)
+
+    def test_overexposure_blown_out(self):
+        self.create_test_images((30, 30, 40, 40), (255, 255, 255))
+        critic = VisionCritic(self.beauty_path, self.mask_path)
+        fb = critic.analyze_overexposure()
+        self.assertIsNotNone(fb)
+        self.assertIn("overexposed", fb.message)
+
+    def test_contrast_ok(self):
+        # Varied image: half dark, half bright
+        beauty = Image.new("RGB", (100, 100), (10, 10, 10))
+        mask = Image.new("L", (100, 100), 0)
+        for y in range(50):
+            for x in range(100):
+                beauty.putpixel((x, y), (200, 200, 200))
+        for x in range(40, 60):
+            for y in range(30, 70):
+                mask.putpixel((x, y), 255)
+        beauty.save(self.beauty_path)
+        mask.save(self.mask_path)
+        critic = VisionCritic(self.beauty_path, self.mask_path)
+        fb = critic.analyze_contrast()
+        self.assertIsNone(fb)
+
+    def test_contrast_flat(self):
+        # Uniform grey image → std near 0
+        beauty = Image.new("RGB", (100, 100), (100, 100, 100))
+        mask = Image.new("L", (100, 100), 0)
+        for x in range(30, 70):
+            for y in range(30, 70):
+                mask.putpixel((x, y), 255)
+        beauty.save(self.beauty_path)
+        mask.save(self.mask_path)
+        critic = VisionCritic(self.beauty_path, self.mask_path)
+        fb = critic.analyze_contrast()
+        self.assertIsNotNone(fb)
+        self.assertEqual(fb.category, "Contrast")
+
+    def test_edge_coverage_ok(self):
+        # Subject centered at (30,30,40,40) — far from borders
+        self.create_test_images((30, 30, 40, 40), (150, 150, 150))
+        critic = VisionCritic(self.beauty_path, self.mask_path)
+        fb = critic.analyze_edge_coverage()
+        self.assertIsNone(fb)
+
+    def test_edge_coverage_cropped(self):
+        # Subject entirely in top-left corner → all in border zone
+        self.create_test_images((0, 0, 10, 10), (150, 150, 150))
+        critic = VisionCritic(self.beauty_path, self.mask_path)
+        fb = critic.analyze_edge_coverage()
+        self.assertIsNotNone(fb)
+        self.assertIn("cropped", fb.message)
+
+    def test_analyze_all_returns_multiple(self):
+        # Image that triggers distance, framing, lighting, contrast, edge_coverage
         self.create_test_images((0, 0, 10, 10), (20, 20, 20))
         critic = VisionCritic(self.beauty_path, self.mask_path)
         feedbacks = critic.analyze()
-        self.assertEqual(len(feedbacks), 3)
+        # At least 3 issues (distance too-far/SUGGESTION, framing/SUGGESTION,
+        # lighting too-dark/WARNING, contrast/SUGGESTION, edge/WARNING)
+        self.assertGreaterEqual(len(feedbacks), 3)

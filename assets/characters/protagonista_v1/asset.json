@@ -1,11 +1,16 @@
 {
   "id": "protagonista_v1",
   "type": "character",
-  "name": "Protagonista Placeholder v1",
-  "source": "procedural_placeholder",
-  "path": null,
+  "name": "Protagonista v1",
+  "source": "procedural_glb",
+  "path": "protagonista_v1.glb",
   "metadata": {
-    "description": "Humanoid proxy used until a real rigged character is imported.",
-    "default_scale": 1.0
+    "description": "Rigged humanoid proxy with 15-bone armature (Root, Hips, Spine, Chest, Head, arms, legs) and 3 embedded animations.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Hips", "Spine", "Chest", "Head",
+              "UpperArm.L", "LowerArm.L", "UpperArm.R", "LowerArm.R",
+              "Thigh.L", "Shin.L", "Foot.L", "Thigh.R", "Shin.R", "Foot.R"],
+    "embedded_animations": ["Walk", "Idle", "Run"],
+    "export_script": "scripts/blender/export_placeholder_assets.py"
   }
 }

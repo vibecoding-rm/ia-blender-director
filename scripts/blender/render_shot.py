@@ -7,13 +7,14 @@ import sys
 from pathlib import Path
 
 import bpy
+from mathutils import Vector
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS_ROOT = ROOT / "assets"
 
 
 def main() -> int:
-    shot_path, output_dir, profile = _parse_args(sys.argv)
+    shot_path, output_dir, profile, preview_only = _parse_args(sys.argv)
     spec = _load_json(shot_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     asset_refs = _resolve_asset_refs(spec)
@@ -29,28 +30,42 @@ def main() -> int:
     _animate_subject(subject, spec, asset_refs)
     _animate_camera(camera, spec)
 
-    if spec.get("weather") == "rain":
-        _create_rain_proxy()
-    if spec.get("weather") in {"fog", "snow"}:
-        _create_atmosphere_proxy(spec)
+    weather = spec.get("weather")
+    if weather == "rain":
+        _create_rain_system()
+    elif weather == "fog":
+        _create_fog_volume()
+    elif weather == "snow":
+        _create_snow_system()
+
+    if _is_claymation(spec):
+        _apply_claymation_style()
 
     bpy.ops.wm.save_as_mainfile(filepath=str(output_dir / "latest_preview.blend"))
+
+    if preview_only:
+        preview_path = _render_preview_frame(spec, output_dir)
+        _write_manifest(spec, shot_path, output_dir, profile, {"preview_frame": str(preview_path)}, asset_refs)
+        return 0
+
     bpy.ops.render.render(animation=True)
     passes = _render_control_passes(output_dir, subject)
     _write_manifest(spec, shot_path, output_dir, profile, passes, asset_refs)
     return 0
 
 
-def _parse_args(argv: list[str]) -> tuple[Path, Path, str]:
+def _parse_args(argv: list[str]) -> tuple[Path, Path, str, bool]:
     if "--" not in argv:
-        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir [preview|final]")
-    script_args = argv[argv.index("--") + 1 :]
-    if len(script_args) not in {2, 3}:
-        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir [preview|final]")
-    profile = script_args[2] if len(script_args) == 3 else "preview"
+        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir [preview|final] [--preview-only]")
+    script_args = argv[argv.index("--") + 1:]
+    preview_only = "--preview-only" in script_args
+    positional = [a for a in script_args if not a.startswith("--")]
+    if len(positional) not in {2, 3}:
+        raise SystemExit("Usage: blender --background --python render_shot.py -- shot.json output_dir [preview|final] [--preview-only]")
+    profile = positional[2] if len(positional) == 3 else "preview"
     if profile not in {"preview", "final"}:
         raise SystemExit("profile must be 'preview' or 'final'")
-    return Path(script_args[0]).resolve(), Path(script_args[1]).resolve(), profile
+    return Path(positional[0]).resolve(), Path(positional[1]).resolve(), profile, preview_only
 
 
 def _load_json(path: Path) -> dict:
@@ -93,7 +108,13 @@ def _create_environment(spec: dict, asset_refs: dict) -> None:
             print(f"  Import failed, falling back to procedural environment.")
 
     scene_name = spec["scene"].lower()
-    if "street" in scene_name or "cyberpunk" in scene_name:
+    if "studio" in scene_name or "news" in scene_name:
+        _create_news_studio()
+    elif "kitchen" in scene_name or "apartment" in scene_name:
+        _create_kitchen()
+    elif "rally" in scene_name or "plaza" in scene_name or "havana" in scene_name:
+        _create_plaza_rally()
+    elif "street" in scene_name or "cyberpunk" in scene_name:
         _create_cyberpunk_street()
     elif "forest" in scene_name:
         _create_forest()
@@ -176,6 +197,142 @@ def _create_desert() -> None:
         rock.data.materials.append(rock_material)
 
 
+def _create_news_studio() -> None:
+    _add_floor("studio_floor", color=(0.88, 0.88, 0.90, 1.0))
+
+    # Backdrop wall with deep-blue gradient feel
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 5, 2.2))
+    backdrop = bpy.context.object
+    backdrop.name = "news_backdrop"
+    backdrop.dimensions = (14, 0.15, 5.0)
+    backdrop.data.materials.append(_emission_material("backdrop_blue", (0.04, 0.10, 0.42, 1.0), 0.3))
+
+    # News desk
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 1.6, 0.52))
+    desk = bpy.context.object
+    desk.name = "news_desk"
+    desk.dimensions = (2.8, 0.75, 1.04)
+    desk.data.materials.append(_material("desk_dark", (0.10, 0.10, 0.16, 1.0)))
+
+    # Glowing desk front panel
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 1.22, 0.52))
+    panel = bpy.context.object
+    panel.name = "desk_panel"
+    panel.dimensions = (2.75, 0.04, 1.00)
+    panel.data.materials.append(_emission_material("panel_cyan", (0.0, 0.55, 1.0, 1.0), 1.8))
+
+    # Three TV screens on backdrop
+    for i, (sx, sz) in enumerate([(-3.2, 2.3), (0.0, 2.6), (3.2, 2.3)]):
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(sx, 4.9, sz))
+        screen = bpy.context.object
+        screen.name = f"tv_screen_{i}"
+        screen.dimensions = (1.7, 0.07, 1.0)
+        color = (1.0, 0.18, 0.06, 1.0) if i != 1 else (0.08, 0.45, 1.0, 1.0)
+        screen.data.materials.append(_emission_material(f"screen_{i}", color, 3.5))
+
+    # Side walls
+    wall_mat = _material("studio_wall", (0.82, 0.84, 0.87, 1.0))
+    for name, loc, dims in [
+        ("studio_left",  (-6, 0, 2.2), (0.12, 12, 5.0)),
+        ("studio_right", ( 6, 0, 2.2), (0.12, 12, 5.0)),
+        ("studio_ceil",  ( 0, 0, 4.5), (12, 12, 0.12)),
+    ]:
+        bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
+        w = bpy.context.object
+        w.name = name
+        w.dimensions = dims
+        w.data.materials.append(wall_mat)
+
+
+def _create_kitchen() -> None:
+    _add_floor("kitchen_floor", color=(0.52, 0.42, 0.32, 1.0))
+
+    wall_mat = _material("kitchen_wall", (0.75, 0.70, 0.62, 1.0))
+    for name, loc, dims in [
+        ("back_wall",  (0,  4.0, 2.0), (8.0, 0.12, 4.0)),
+        ("left_wall",  (-4, 0.0, 2.0), (0.12, 8.0, 4.0)),
+        ("right_wall", ( 4, 0.0, 2.0), (0.12, 8.0, 4.0)),
+    ]:
+        bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
+        w = bpy.context.object
+        w.name = name
+        w.dimensions = dims
+        w.data.materials.append(wall_mat)
+
+    # Kitchen counter along back wall
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 3.6, 0.45))
+    counter = bpy.context.object
+    counter.name = "kitchen_counter"
+    counter.dimensions = (4.5, 0.65, 0.90)
+    counter.data.materials.append(_material("counter_mat", (0.20, 0.20, 0.22, 1.0)))
+
+    # Rickety wooden table
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0.5, 0.38))
+    table = bpy.context.object
+    table.name = "kitchen_table"
+    table.dimensions = (1.5, 0.9, 0.76)
+    table.data.materials.append(_material("table_wood", (0.28, 0.18, 0.10, 1.0)))
+
+    # Old CRT TV on counter
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(1.6, 3.3, 1.12))
+    tv = bpy.context.object
+    tv.name = "old_tv_casing"
+    tv.dimensions = (0.48, 0.35, 0.42)
+    tv.data.materials.append(_material("tv_casing", (0.16, 0.14, 0.11, 1.0)))
+
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(1.6, 3.14, 1.12))
+    screen = bpy.context.object
+    screen.name = "old_tv_screen"
+    screen.dimensions = (0.40, 0.04, 0.34)
+    screen.data.materials.append(_emission_material("tv_glow", (0.18, 0.48, 0.90, 1.0), 2.5))
+
+    # Flickering single bulb — represented by emissive sphere
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=6, ring_count=4, radius=0.08, location=(0, 2, 3.6))
+    bulb = bpy.context.object
+    bulb.name = "ceiling_bulb"
+    bulb.data.materials.append(_emission_material("bulb_warm", (1.0, 0.92, 0.72, 1.0), 8.0))
+
+
+def _create_plaza_rally() -> None:
+    _add_floor("plaza_ground", color=(0.34, 0.30, 0.26, 1.0))
+
+    # Government-style building facade
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 7, 4.5))
+    building = bpy.context.object
+    building.name = "gov_facade"
+    building.dimensions = (14, 2.5, 10.0)
+    building.data.materials.append(_material("facade_mat", (0.70, 0.65, 0.55, 1.0)))
+
+    # Poster / banner on facade
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 5.85, 3.8))
+    poster = bpy.context.object
+    poster.name = "rubio_poster"
+    poster.dimensions = (3.0, 0.06, 2.2)
+    poster.data.materials.append(_emission_material("poster_red", (0.75, 0.06, 0.06, 1.0), 1.2))
+
+    # Street lamps
+    for x in (-4.5, 0.0, 4.5):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.06, depth=5.0,
+                                             location=(x, 4.0, 2.5))
+        pole = bpy.context.object
+        pole.name = f"lamp_pole_{int(x)}"
+        pole.data.materials.append(_material("pole_dark", (0.10, 0.10, 0.10, 1.0)))
+
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=6, ring_count=4, radius=0.12,
+                                              location=(x, 4.0, 5.1))
+        head = bpy.context.object
+        head.name = f"lamp_head_{int(x)}"
+        head.data.materials.append(_emission_material("lamp_warm", (1.0, 0.88, 0.65, 1.0), 4.0))
+
+    # Side buildings
+    for bx, bz in ((-6, 5), (6, 4)):
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(bx, 4, bz / 2))
+        sb = bpy.context.object
+        sb.name = f"side_building_{bx}"
+        sb.dimensions = (2.5, 4.0, float(bz))
+        sb.data.materials.append(_material("side_facade", (0.55, 0.50, 0.42, 1.0)))
+
+
 def _add_floor(name: str, *, color: tuple[float, float, float, float]) -> None:
     bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, -0.05))
     floor = bpy.context.object
@@ -193,6 +350,7 @@ def _create_subject(spec: dict, asset_refs: dict) -> bpy.types.Object:
             if imported is not None:
                 imported.name = f"subject_{_slug(spec['subject'])}"
                 imported.location = (0, 0, 0)
+                _normalize_subject(imported)
                 print(f"  Imported character from: {character['path']}")
                 return imported
             print(f"  Import failed, falling back to procedural character.")
@@ -232,20 +390,50 @@ def _create_lighting(spec: dict) -> None:
 
 
 def _create_camera(spec: dict, subject: bpy.types.Object) -> bpy.types.Object:
-    movement = spec["camera"].get("movement", "orbit").lower()
-    location = (0, -7, 3.2) if movement == "push_in" else (5, -7, 4)
-    if movement == "static":
-        location = (3.5, -6, 3.2)
-    bpy.ops.object.camera_add(location=location, rotation=(math.radians(60), 0, math.radians(37)))
+    lens_mm = int(spec["camera"].get("lens_mm", 35))
+    height = _subject_height(subject)
+
+    # Frame size by lens role: 85mm close-up (upper body), 24mm wide establishing,
+    # 35-50mm medium shot. Distance derives from the vertical field of view.
+    if lens_mm >= 70:
+        frame_height = 0.7 * height
+        target_z = 0.78 * height
+    elif lens_mm <= 28:
+        frame_height = 3.5 * height
+        target_z = 0.5 * height
+    else:
+        frame_height = 1.6 * height
+        target_z = 0.55 * height
+
+    bpy.ops.object.camera_add(location=(0, -5, target_z))
     camera = bpy.context.object
     camera.name = "director_camera"
-    camera.data.lens = int(spec["camera"].get("lens_mm", 35))
+    camera.data.lens = lens_mm
     bpy.context.scene.camera = camera
-    _look_at(camera, subject.location)
+
+    sensor_height = camera.data.sensor_width * (
+        bpy.context.scene.render.resolution_y / bpy.context.scene.render.resolution_x
+    )
+    fov_v = 2 * math.atan(sensor_height / (2 * lens_mm))
+    distance = frame_height / (2 * math.tan(fov_v / 2))
+
+    target = bpy.data.objects.new("camera_target", None)
+    bpy.context.scene.collection.objects.link(target)
+    target.location = (subject.location.x, subject.location.y, target_z)
+    # Parent keeping the world transform: imported GLB roots often carry a
+    # Y-up→Z-up rotation/scale that would otherwise displace the target.
+    bpy.context.view_layer.update()
+    target.parent = subject
+    target.matrix_parent_inverse = subject.matrix_world.inverted()
+
+    camera["frame_distance"] = distance
+    camera["target_z"] = target_z
+    camera.location = (0, -distance, target_z + 0.15 * distance)
+
     constraint = camera.constraints.new(type="TRACK_TO")
     constraint.track_axis = "TRACK_NEGATIVE_Z"
     constraint.up_axis = "UP_Y"
-    constraint.target = subject
+    constraint.target = target
     return camera
 
 
@@ -254,6 +442,22 @@ def _animate_subject(subject: bpy.types.Object, spec: dict, asset_refs: dict) ->
     action = spec["action"].lower()
     animation_ref = asset_refs.get("animation", {})
     animation_id = animation_ref.get("id")
+
+    # If the imported object already carries NLA tracks (e.g. GLB with embedded actions), reuse them.
+    if (subject.animation_data and subject.animation_data.nla_tracks
+            and any(t.strips for t in subject.animation_data.nla_tracks)):
+        print("  Subject already has NLA tracks — reusing embedded animation.")
+        action_name = animation_ref.get("metadata", {}).get("action_name")
+        if action_name and _select_nla_animation(subject, action_name, frame_end):
+            print(f"  Selected NLA animation: {action_name}")
+            return
+        # Fallback: unmute every track (a failed selection leaves them muted)
+        # and extend all strip frame ends so the embedded animation still plays.
+        for track in subject.animation_data.nla_tracks:
+            track.mute = False
+            for strip in track.strips:
+                strip.frame_end = frame_end
+        return
 
     # If a real animation .glb is provided, try to apply it via NLA
     if animation_ref.get("path"):
@@ -269,12 +473,13 @@ def _animate_subject(subject: bpy.types.Object, spec: dict, asset_refs: dict) ->
     if "stands" in action or animation_id == "idle_v1":
         start_x = end_x = 0
 
-    subject.location = (start_x, 0, 1)
+    base_z = subject.location.z
+    subject.location = (start_x, 0, base_z)
     subject.keyframe_insert(data_path="location", frame=1)
     subject.rotation_euler = (0, 0, 0)
     subject.keyframe_insert(data_path="rotation_euler", frame=1)
 
-    subject.location = (end_x, 0, 1)
+    subject.location = (end_x, 0, base_z)
     subject.rotation_euler = (0, 0, math.radians(180))
     subject.keyframe_insert(data_path="location", frame=frame_end)
     subject.keyframe_insert(data_path="rotation_euler", frame=frame_end)
@@ -283,27 +488,93 @@ def _animate_subject(subject: bpy.types.Object, spec: dict, asset_refs: dict) ->
 def _animate_camera(camera: bpy.types.Object, spec: dict) -> None:
     frame_end = int(spec["duration_seconds"] * spec["fps"])
     movement = spec["camera"].get("movement", "orbit").lower()
+    distance = float(camera.get("frame_distance", 7.0))
+    cam_z = float(camera.get("target_z", 1.0)) + 0.15 * distance
+
     if movement == "static":
         camera.keyframe_insert(data_path="location", frame=1)
         camera.keyframe_insert(data_path="location", frame=frame_end)
         return
     if movement == "push_in":
-        camera.location = (0, -8, 3.2)
+        camera.location = (0, -1.5 * distance, cam_z + 0.1 * distance)
         camera.keyframe_insert(data_path="location", frame=1)
-        camera.location = (0, -4.2, 2.4)
+        camera.location = (0, -0.85 * distance, cam_z)
         camera.keyframe_insert(data_path="location", frame=frame_end)
         return
     if movement == "dolly":
-        camera.location = (-4, -6, 3.2)
+        camera.location = (-0.6 * distance, -distance, cam_z)
         camera.keyframe_insert(data_path="location", frame=1)
-        camera.location = (4, -6, 3.2)
+        camera.location = (0.6 * distance, -distance, cam_z)
         camera.keyframe_insert(data_path="location", frame=frame_end)
         return
 
-    camera.location = (5, -7, 4)
-    camera.keyframe_insert(data_path="location", frame=1)
-    camera.location = (-5, -7, 4)
-    camera.keyframe_insert(data_path="location", frame=frame_end)
+    # Orbit: smooth arc at constant radius around the subject (-50° → +50°)
+    steps = 5
+    for i in range(steps):
+        t = i / (steps - 1)
+        angle = math.radians(-90 - 50 + 100 * t)  # around -Y axis front
+        frame = 1 + round(t * (frame_end - 1))
+        camera.location = (distance * math.cos(angle), distance * math.sin(angle), cam_z)
+        camera.keyframe_insert(data_path="location", frame=frame)
+
+
+def _select_nla_animation(subject: bpy.types.Object, action_name: str, frame_end: int) -> bool:
+    """Mute all NLA tracks except the one whose action matches action_name; loop it to frame_end."""
+    if not (subject.animation_data and subject.animation_data.nla_tracks):
+        return False
+    target = action_name.lower()
+
+    def _matches(strip: bpy.types.NlaStrip) -> bool:
+        # GLB exporters decorate action names (e.g. "Walk" → "Walk_Track" or
+        # "Walk_Track_Protagonista_Armature"), so match by substring.
+        return bool(strip.action) and target in strip.action.name.lower()
+
+    matched_tracks = [t for t in subject.animation_data.nla_tracks if any(_matches(s) for s in t.strips)]
+    if not matched_tracks:
+        return False
+    for track in subject.animation_data.nla_tracks:
+        track.mute = track not in matched_tracks
+    for track in matched_tracks:
+        for strip in track.strips:
+            if _matches(strip):
+                cycle = strip.action_frame_end - strip.action_frame_start
+                if cycle > 0:
+                    strip.repeat = math.ceil(frame_end / cycle)
+                strip.frame_end = frame_end
+    return True
+
+
+def _subject_bounds(subject: bpy.types.Object) -> tuple[float, float]:
+    """Return (min_z, height) of the subject's world-space mesh bounding box."""
+    meshes = [o for o in [subject, *subject.children_recursive] if o.type == "MESH"]
+    if not meshes:
+        return subject.location.z, 1.7
+    zs = [
+        (obj.matrix_world @ Vector(corner)).z
+        for obj in meshes
+        for corner in obj.bound_box
+    ]
+    return min(zs), max(zs) - min(zs)
+
+
+def _normalize_subject(subject: bpy.types.Object, *, target_height: float = 1.7) -> None:
+    """Scale an imported character to a plausible human height and rest it on the floor."""
+    min_z, height = _subject_bounds(subject)
+    if height > 0 and not (1.2 <= height <= 2.5):
+        factor = target_height / height
+        subject.scale = tuple(s * factor for s in subject.scale)
+        bpy.context.view_layer.update()
+        min_z, height = _subject_bounds(subject)
+        print(f"  Normalized subject scale by {factor:.3f} (height {height:.2f}m)")
+    if abs(min_z) > 1e-4:
+        subject.location.z -= min_z
+        bpy.context.view_layer.update()
+        print(f"  Grounded subject (was floating at z={min_z:.3f})")
+
+
+def _subject_height(subject: bpy.types.Object) -> float:
+    _, height = _subject_bounds(subject)
+    return height if height > 0 else 1.7
 
 
 def _create_humanoid_proxy(spec: dict) -> bpy.types.Object:
@@ -450,34 +721,128 @@ def _apply_nla_animation(
     return True
 
 
-def _create_rain_proxy() -> None:
-    material = bpy.data.materials.new("rain_proxy_material")
-    material.diffuse_color = (0.6, 0.8, 1.0, 0.35)
-    for index in range(80):
-        x = random.uniform(-6, 6)
-        y = random.uniform(-6, 3)
-        z = random.uniform(2, 7)
-        bpy.ops.mesh.primitive_cube_add(size=0.025, location=(x, y, z))
-        drop = bpy.context.object
-        drop.name = f"rain_drop_{index:03d}"
-        drop.scale.z = random.uniform(5, 12)
-        drop.data.materials.append(material)
+def _create_rain_system() -> None:
+    """Particle-system rain: emitter plane overhead, elongated streak instances falling."""
+    # Instance object: thin vertical streak (hidden from direct view, shown via particles)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(100, 100, 100))
+    streak = bpy.context.object
+    streak.name = "rain_streak_instance"
+    streak.dimensions = (0.015, 0.015, 0.35)
+    mat = bpy.data.materials.new("rain_streak_material")
+    mat.diffuse_color = (0.55, 0.75, 1.0, 0.6)
+    streak.data.materials.append(mat)
+
+    # Emitter plane above scene, hidden from render
+    bpy.ops.mesh.primitive_plane_add(size=14, location=(0, 0, 9))
+    emitter = bpy.context.object
+    emitter.name = "rain_emitter"
+    emitter.hide_render = True
+
+    ps = emitter.modifiers.new("rain_ps", type="PARTICLE_SYSTEM")
+    s = ps.particle_system.settings
+    s.name = "rain_settings"
+    s.type = "EMITTER"
+    s.count = 400
+    s.frame_start = 1
+    s.frame_end = 500
+    s.lifetime = 25
+    s.lifetime_random = 0.3
+    s.emit_from = "FACE"
+    s.use_emit_random = True
+    s.normal_factor = 0.0
+    s.factor_random = 0.4
+    s.object_align_factor[2] = -8.0
+    s.render_type = "OBJECT"
+    s.instance_object = streak
+    s.particle_size = 0.8
+    s.use_rotation_instance = True
 
 
-def _create_atmosphere_proxy(spec: dict) -> None:
-    weather = spec.get("weather")
-    color = (0.75, 0.82, 0.95, 0.18) if weather == "fog" else (0.9, 0.95, 1.0, 0.45)
-    material = _material(f"{weather}_proxy_material", color)
-    for index in range(36):
-        bpy.ops.mesh.primitive_uv_sphere_add(
-            segments=12,
-            ring_count=6,
-            radius=random.uniform(0.03, 0.08) if weather == "snow" else random.uniform(0.35, 0.9),
-            location=(random.uniform(-6, 6), random.uniform(-3, 5), random.uniform(0.8, 4.8)),
-        )
-        particle = bpy.context.object
-        particle.name = f"{weather}_proxy_{index:03d}"
-        particle.data.materials.append(material)
+def _create_fog_volume() -> None:
+    """Volume scatter cube for atmospheric fog (Eevee volumetrics)."""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 1, 3))
+    vol = bpy.context.object
+    vol.name = "fog_volume"
+    vol.dimensions = (14, 12, 8)
+
+    mat = bpy.data.materials.new("fog_volume_material")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (300, 0)
+    scatter = nodes.new("ShaderNodeVolumeScatter")
+    scatter.location = (0, 0)
+    scatter.inputs["Density"].default_value = 0.08
+    scatter.inputs["Color"].default_value = (0.75, 0.82, 0.95, 1.0)
+    links.new(scatter.outputs["Volume"], output.inputs["Volume"])
+    vol.data.materials.append(mat)
+
+    bpy.context.scene.eevee.use_volumetric_shadows = True
+
+
+def _create_snow_system() -> None:
+    """Particle-system snow: emitter plane overhead, ico-sphere flake instances drifting down."""
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.04, location=(100, 100, 100))
+    flake = bpy.context.object
+    flake.name = "snow_flake_instance"
+    mat = bpy.data.materials.new("snow_flake_material")
+    mat.diffuse_color = (0.95, 0.97, 1.0, 0.9)
+    flake.data.materials.append(mat)
+
+    bpy.ops.mesh.primitive_plane_add(size=14, location=(0, 0, 7))
+    emitter = bpy.context.object
+    emitter.name = "snow_emitter"
+    emitter.hide_render = True
+
+    ps = emitter.modifiers.new("snow_ps", type="PARTICLE_SYSTEM")
+    s = ps.particle_system.settings
+    s.name = "snow_settings"
+    s.type = "EMITTER"
+    s.count = 250
+    s.frame_start = 1
+    s.frame_end = 500
+    s.lifetime = 60
+    s.lifetime_random = 0.4
+    s.emit_from = "FACE"
+    s.use_emit_random = True
+    s.normal_factor = 0.0
+    s.factor_random = 0.8
+    s.object_align_factor[2] = -1.5
+    s.render_type = "OBJECT"
+    s.instance_object = flake
+    s.particle_size = 1.0
+
+
+def _render_preview_frame(spec: dict, output_dir: Path) -> Path:
+    """Render a single mid-shot frame at 25% resolution for quick critic evaluation."""
+    scene = bpy.context.scene
+    frame_end = int(spec["duration_seconds"] * spec["fps"])
+    mid_frame = max(1, frame_end // 2)
+    scene.frame_set(mid_frame)
+
+    orig_percentage = scene.render.resolution_percentage
+    orig_format = scene.render.image_settings.file_format
+    orig_filepath = scene.render.filepath
+
+    preview_path = output_dir / "preview_frame.png"
+    try:
+        scene.render.resolution_percentage = 25
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.filepath = str(output_dir / "preview_frame")
+        bpy.ops.render.render(write_still=True)
+    finally:
+        scene.render.resolution_percentage = orig_percentage
+        scene.render.image_settings.file_format = orig_format
+        scene.render.filepath = orig_filepath
+
+    # Blender appends a zero-padded frame number; rename to a stable path
+    numbered = output_dir / f"preview_frame{mid_frame:04d}.png"
+    if numbered.exists() and not preview_path.exists():
+        numbered.rename(preview_path)
+    return preview_path
 
 
 def _render_control_passes(output_dir: Path, subject: bpy.types.Object) -> dict[str, str]:
@@ -500,6 +865,10 @@ def _render_control_passes(output_dir: Path, subject: bpy.types.Object) -> dict[
     # Enable real view-layer passes (Z depth, Surface Normal, Object Index)
     _enable_view_layer_passes(scene)
 
+    # Force the depsgraph to propagate pass-enable changes so the compositor
+    # Render Layers node exposes the IndexOB socket immediately.
+    bpy.context.evaluated_depsgraph_get()
+
     # Build compositor node tree: Render Layers → one File Output per pass
     _setup_compositor_pass_nodes(scene, passes_dir)
 
@@ -517,12 +886,15 @@ def _render_control_passes(output_dir: Path, subject: bpy.types.Object) -> dict[
 
     # Compositor File Output appends the zero-padded frame number
     frame_str = f"{frame:04d}"
-    return {
-        "beauty":       str(_resolve_pass_file(passes_dir / f"beauty_frame_{frame_str}.png")),
-        "subject_mask": str(_resolve_pass_file(passes_dir / f"subject_mask_frame_{frame_str}.png")),
-        "depth_proxy":  str(_resolve_pass_file(passes_dir / f"depth_proxy_frame_{frame_str}.png")),
+    result: dict[str, str] = {
+        "beauty":      str(_resolve_pass_file(passes_dir / f"beauty_frame_{frame_str}.png")),
+        "depth_proxy": str(_resolve_pass_file(passes_dir / f"depth_proxy_frame_{frame_str}.png")),
         "normal_proxy": str(_resolve_pass_file(passes_dir / f"normal_proxy_frame_{frame_str}.png")),
     }
+    mask_candidate = passes_dir / f"subject_mask_frame_{frame_str}.png"
+    if mask_candidate.exists():
+        result["subject_mask"] = str(mask_candidate)
+    return result
 
 
 def _mark_subject_for_passes(subject: bpy.types.Object, *, pass_index: int) -> None:
@@ -580,6 +952,11 @@ def _setup_compositor_pass_nodes(scene: bpy.types.Scene, passes_dir: Path) -> No
     # ── Source ───────────────────────────────────────────────────────────────
     rl = nodes.new("CompositorNodeRLayers")
     rl.location = (-300, 0)
+    # Blender defers pass output registration; removing and re-adding the node
+    # forces the node to expose all currently-enabled view-layer pass sockets.
+    nodes.remove(rl)
+    rl = nodes.new("CompositorNodeRLayers")
+    rl.location = (-300, 0)
 
     # ── Beauty pass ──────────────────────────────────────────────────────────
     beauty_out = _file_output_node(nodes, passes_dir, "beauty_frame_", x=200, y=300)
@@ -606,9 +983,17 @@ def _setup_compositor_pass_nodes(scene: bpy.types.Scene, passes_dir: Path) -> No
     id_mask.location = (-50, -300)
     id_mask.index = 1
     id_mask.use_antialiasing = True
-    links.new(rl.outputs["IndexOB"], id_mask.inputs[0])
     mask_out = _file_output_node(nodes, passes_dir, "subject_mask_frame_", x=200, y=-400)
-    links.new(id_mask.outputs[0], mask_out.inputs[0])
+    if "IndexOB" in rl.outputs:
+        links.new(rl.outputs["IndexOB"], id_mask.inputs[0])
+        links.new(id_mask.outputs[0], mask_out.inputs[0])
+    else:
+        # Fallback: flat white RGBA image (full frame treated as subject)
+        # CompositorNodeRGB broadcasts a constant colour as a frame-sized image.
+        rgb_white = nodes.new("CompositorNodeRGB")
+        rgb_white.outputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
+        rgb_white.location = (-50, -500)
+        links.new(rgb_white.outputs[0], mask_out.inputs[0])
 
 
 def _file_output_node(
@@ -642,6 +1027,57 @@ def _resolve_pass_file(path: Path) -> Path:
     return path if path.exists() else path.with_suffix("")
 
 
+
+
+def _is_claymation(spec: dict) -> bool:
+    style = spec.get("style", "").lower()
+    return any(word in style for word in ("clay", "plastilina", "claymation", "stop motion", "stop-motion"))
+
+
+def _apply_claymation_style() -> None:
+    """Re-shade every mesh with a clay look: matte rough surface with a
+    fingerprint-like noise bump, preserving each material's base color.
+    Animation cadence is left to the spec (use fps 12 for stop-motion feel)."""
+    print("  Applying claymation style override.")
+    for obj in bpy.context.scene.objects:
+        if obj.type != "MESH" or obj.hide_render:
+            continue
+        for slot_index in range(max(1, len(obj.material_slots))):
+            base_color = (0.8, 0.5, 0.35, 1.0)
+            old = obj.material_slots[slot_index].material if obj.material_slots else None
+            if old is not None:
+                if old.use_nodes:
+                    bsdf = old.node_tree.nodes.get("Principled BSDF")
+                    if bsdf is not None:
+                        base_color = tuple(bsdf.inputs["Base Color"].default_value)
+                else:
+                    base_color = tuple(old.diffuse_color)
+            clay = _clay_material(f"clay_{obj.name}_{slot_index}", base_color)
+            if obj.material_slots:
+                obj.material_slots[slot_index].material = clay
+            else:
+                obj.data.materials.append(clay)
+
+
+def _clay_material(name: str, color: tuple[float, ...]) -> bpy.types.Material:
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (color[0], color[1], color[2], 1.0)
+    bsdf.inputs["Roughness"].default_value = 0.85
+    if "Specular IOR Level" in bsdf.inputs:
+        bsdf.inputs["Specular IOR Level"].default_value = 0.2
+
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = 35.0
+    noise.inputs["Detail"].default_value = 4.0
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.15
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return material
 
 
 def _material(name: str, color: tuple[float, float, float, float]) -> bpy.types.Material:
