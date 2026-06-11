@@ -105,3 +105,26 @@ Con `--shots 6` o más y un prompt de noticiero, el plan alterna estudio/plaza
 con ángulos distintos por plano (un corte cada `--duration` segundos).
 
 La guía editorial completa está en `docs/estrategia_contenido.md`.
+
+## Lote nocturno de episodios
+
+Producir una semana completa mientras duermes:
+
+```bash
+PYTHONPATH=src python3 -m ai_blender_director.cli batch examples/episodios/semana_ejemplo.jsonl
+```
+
+- El archivo es JSONL: una línea JSON por episodio con `id`, `prompt`, `hook`,
+  `narration` (defaults: 6 planos de 3s, 12 fps, vertical).
+- Reanudable: los episodios cuyo MP4 ya existe se saltan (`--force` para repetir).
+- Un episodio fallido no detiene el lote; al final imprime resumen con tiempos.
+- `--dry-run` valida el archivo y lista lo que produciría sin renderizar.
+- Salida: `renders/episodios/<id>.mp4`.
+
+## Regenerar personajes y gráficos
+
+```bash
+blender --background --python scripts/blender/export_cotorra.py   # La Cotorra
+blender --background --python scripts/blender/export_cerdo.py     # El Comandante Cerdo
+python3 scripts/generate_screen_textures.py                       # pantallas del estudio
+```

@@ -57,7 +57,11 @@ CIERRE — MULETILLA:       frase de marca recurrente que además cierra el loop
    personaje. Formato probado en el humor cubano (parodia de NatGeo/Discovery).
 
 4. **La entrevista imposible**. La Cotorra entrevista a un personaje que solo
-   responde consignas. Requiere un segundo personaje (pendiente: asset).
+   responde consignas. El personaje ya existe: **El Comandante Cerdo**
+   (`comandante_cerdo_v1`) — cerdo en uniforme verde olivo con gorra de
+   estrella, medallas, puro y dedo acusador (arquetipo Rebelión en la Granja,
+   legible mundialmente). Falta el set de entrevista con dos personajes en
+   plano.
 
 5. **El choteo como identidad**: humor cubano de burla cotidiana, personajes
    icónicos recurrentes y muletillas — eso construye marca y fidelidad.
@@ -103,7 +107,19 @@ PYTHONPATH=src python3 -m ai_blender_director.cli auto-director \
 4. Ejecutar el comando de producción.
 5. Revisar el preview; si funciona, re-render con `--profile final`.
 
-## 8. Roadmap de mejoras del canal
+## 8. El elenco del canal
+
+| Personaje | Asset | Rol | Símbolo |
+|---|---|---|---|
+| La Cotorra | `cotorra_v1` | Presentadora del noticiero | El medio que repite la propaganda |
+| El Comandante Cerdo | `comandante_cerdo_v1` | Da los partes oficiales | El poder (Orwell, universal) |
+| El Dinosaurio | (pendiente) | Burócrata del comité | La vieja guardia ("los dinosaurios") |
+
+Ambos personajes existentes parpadean, hablan (pico/mandíbula articulados) y
+caminan; se regeneran/ajustan editando `scripts/blender/export_cotorra.py` y
+`scripts/blender/export_cerdo.py`.
+
+## 9. Roadmap de mejoras del canal
 
 - [x] Mascota original (La Cotorra) con pico articulado
 - [x] TTS local en español
@@ -112,12 +128,18 @@ PYTHONPATH=src python3 -m ai_blender_director.cli auto-director \
 - [x] Subtítulos quemados automáticos
 - [x] Tarjeta de gancho + sting
 - [x] SFX en cortes
+- [x] Parpadeo y expresividad (huesos de ojos en ambos personajes)
+- [x] Segundo personaje: El Comandante Cerdo
+- [x] Pantallas del estudio con gráficos generados (logo, ÚLTIMA HORA, mapa)
+- [x] Cola nocturna `batch` (archivo JSONL → semana de episodios)
 - [ ] Música de fondo (colocar archivo en `assets/audio/music_bed.mp3` — usar música libre de derechos)
-- [ ] Parpadeo/cejas de la cotorra (expresividad, cotorra_v2)
-- [ ] Segundo personaje ("el de las consignas") para entrevistas
+- [ ] Set de entrevista con dos personajes en plano ("entrevista imposible")
 - [ ] Sincronía pico-voz (análisis de amplitud del WAV → keyframes del pico)
 - [ ] Director LLM con OPENROUTER_API_KEY para guiones por noticia real
 - [ ] Perfil final 1080x1920 para publicación
+
+El plan de crecimiento completo (hardware, GPU alquilada, costos, distribución
+y monetización) está en `docs/escalado.md`.
 
 ## 9. Fuentes
 

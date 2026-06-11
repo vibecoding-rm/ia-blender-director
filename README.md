@@ -1,27 +1,42 @@
-# IA Blender Director
+# IA Blender Director — El Noticiero de La Cotorra
 
-Pipeline local para dirigir Blender desde especificaciones estructuradas.
-
-La idea del proyecto no es que una IA use el escritorio sin control. El flujo base es:
+Pipeline local para producir videos animados (sátira de noticias en claymation)
+dirigiendo Blender desde especificaciones estructuradas. La IA propone specs
+JSON validados — nunca ejecuta código arbitrario — y Blender es la fuente de
+verdad. Todo es reproducible: mismo JSON + seed + assets = mismo video.
 
 ```text
-Prompt creativo
+Idea / titular
+  -> Director Agent (plan de planos)
   -> shot.json validado
-  -> script bpy en Blender
-  -> preview/render
-  -> critic visual y correcciones
-  -> render final
+  -> Blender (sets, personajes, animación, render)
+  -> Vision Critic
+  -> Postproducción (gancho, voz TTS, subtítulos, SFX)
+  -> Short listo para publicar
 ```
 
 ## Estado Actual
 
-Este repo arranca con un MVP:
+Producción de episodios completos con un comando:
 
-- Esquema Python para validar planos (`ShotSpec`).
-- CLI local para validar y preparar comandos de render.
-- Script Blender `bpy` que crea una escena simple con cámara, luz, objeto, keyframes y render.
-- Ejemplo en `examples/shots/cyberpunk_orbit.json`.
-- Tests básicos sin dependencias externas.
+- **Elenco original** (licencia propia, generado por script): La Cotorra
+  (presentadora, pico articulado, parpadeo) y El Comandante Cerdo (portavoz
+  del régimen, mandíbula y dedo acusador).
+- **Sets procedurales**: estudio de noticias con pantallas de gráficos
+  generados, plaza habanera, cocina, calle cyberpunk, bosque, desierto.
+- **Estilo claymation** automático (materiales de arcilla + 12 fps).
+- **Postproducción Shorts**: tarjeta de gancho con sting, narración TTS en
+  español (piper, local), subtítulos quemados, whoosh en cada corte.
+- **Formato vertical 9:16** (`--vertical`) y 16:9.
+- **Cola nocturna**: `batch semana.jsonl` produce N episodios en secuencia.
+- Critic visual con passes de control, índice de jobs, servidor FastAPI + web UI.
+
+Documentación clave:
+
+- `docs/estrategia_contenido.md` — guía editorial (retención, formatos, guiones).
+- `docs/escalado.md` — plan de crecimiento (hardware, GPU alquilada, costos).
+- `docs/commands.md` — recetario de comandos.
+- `docs/project_vision.md` — visión y principios del proyecto.
 
 ## Requisitos
 
