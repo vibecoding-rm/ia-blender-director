@@ -32,6 +32,12 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
         "--no-comfy", action="store_true",
         help="Skip the ComfyUI stylization step (e.g. when no ComfyUI server is available).",
     )
+    pipeline_parser.add_argument("--vertical", action="store_true", help="Formato vertical 9:16 (Shorts/TikTok).")
+    pipeline_parser.add_argument(
+        "--narration", default=None,
+        help="Texto de narración: se sintetiza con piper-tts y se mezcla sobre el video final.",
+    )
+    pipeline_parser.add_argument("--voice", type=Path, default=None, help="Ruta a un modelo de voz piper (.onnx).")
 
 
 def handle_auto_director(args: argparse.Namespace) -> int:
@@ -124,6 +130,7 @@ def _auto_correct_and_rerender(
 def _handle_multi_shot(args: argparse.Namespace) -> int:
     from ..planner import write_shot_plan, slug_for_prompt
     from .video import assemble_frames_sync, concat_videos_sync
+    from .generation import resolution_for
 
     print(f"=== [1/4] DIRECTOR AGENT: GENERANDO {args.shots} PLANOS ===")
     paths = write_shot_plan(
@@ -132,6 +139,7 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         n_shots=args.shots,
         duration_seconds=args.duration,
         fps=args.fps,
+        resolution=resolution_for(args),
     )
     print(f"  {len(paths)} plano(s) generado(s)")
     for p in paths:
@@ -217,9 +225,23 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         output_video = Path("renders") / f"plan_{slug}.mp4"
 
     output_video.parent.mkdir(parents=True, exist_ok=True)
-    if concat_videos_sync(shot_videos, output_video):
-        print(f"video final: {output_video}")
-    else:
+    if not concat_videos_sync(shot_videos, output_video):
         print("warning: falló la concatenación final", file=sys.stderr)
+        return 1
+    print(f"video final: {output_video}")
+
+    if args.narration:
+        from ..tts import synthesize, mux_narration
+
+        print("\n=== [5/5] NARRACIÓN TTS ===")
+        narration_wav = output_video.with_suffix(".narration.wav")
+        if synthesize(args.narration, narration_wav, voice=args.voice):
+            narrated = output_video.with_stem(output_video.stem + "_narrado")
+            if mux_narration(output_video, narration_wav, narrated):
+                print(f"video narrado: {narrated}")
+            else:
+                print("warning: falló la mezcla de narración", file=sys.stderr)
+        else:
+            print("warning: falló la síntesis de voz", file=sys.stderr)
 
     return 0

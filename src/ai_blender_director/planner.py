@@ -46,12 +46,14 @@ def plan_shots(
     *,
     duration_seconds: int = 4,
     fps: int = 24,
+    resolution: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Convierte una idea en una lista de dicts ShotSpec listos para guardar."""
+    resolution = resolution or DEFAULT_RESOLUTION
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         print("warning: OPENROUTER_API_KEY no está configurada. Usando generador de respaldo.", file=sys.stderr)
-        return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps)
+        return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
 
     try:
         from openai import OpenAI
@@ -78,7 +80,7 @@ def plan_shots(
         data = json.loads(response.choices[0].message.content)
         raw_shots = data.get("shots", [])[:n_shots]
         shots = [
-            _raw_item_to_shot(item, i, prompt, duration_seconds=duration_seconds, fps=fps)
+            _raw_item_to_shot(item, i, prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
             for i, item in enumerate(raw_shots)
         ]
         for shot in shots:
@@ -87,7 +89,7 @@ def plan_shots(
 
     except Exception as exc:
         print(f"error llamando a OpenRouter: {exc}. Usando generador de respaldo.", file=sys.stderr)
-        return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps)
+        return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
 
 
 def write_shot_plan(
@@ -97,10 +99,11 @@ def write_shot_plan(
     *,
     duration_seconds: int = 4,
     fps: int = 24,
+    resolution: dict[str, int] | None = None,
 ) -> list[Path]:
     """Genera y guarda todos los planos del plan. Devuelve las rutas guardadas."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    shots = plan_shots(prompt, n_shots, duration_seconds=duration_seconds, fps=fps)
+    shots = plan_shots(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
     base_slug = _slug(prompt)
     paths: list[Path] = []
     for i, shot in enumerate(shots, start=1):
@@ -126,6 +129,7 @@ def _raw_item_to_shot(
     *,
     duration_seconds: int,
     fps: int,
+    resolution: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     return {
         "_shot_role": item.get("shot_role", "action"),
@@ -133,7 +137,7 @@ def _raw_item_to_shot(
         "style": item.get("style", "cinematic concept preview"),
         "duration_seconds": duration_seconds,
         "fps": fps,
-        "resolution": DEFAULT_RESOLUTION,
+        "resolution": resolution or DEFAULT_RESOLUTION,
         "camera": {
             "movement": item.get("camera_movement", "orbit"),
             "lens_mm": int(item.get("camera_lens_mm", 35)),
@@ -155,11 +159,18 @@ def _fallback_plan(
     *,
     duration_seconds: int,
     fps: int,
+    resolution: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Plan de respaldo: establishing → action → close_up."""
+    resolution = resolution or DEFAULT_RESOLUTION
     normalized = " ".join(prompt.strip().lower().split())
 
-    if "cyberpunk" in normalized:
+    if any(w in normalized for w in ["noticia", "noticiero", "news", "estudio de tv"]):
+        scene = "news studio"
+        style = "claymation broadcast"
+        environment = None
+        lighting_base = "bright studio broadcast light"
+    elif "cyberpunk" in normalized:
         scene = "cyberpunk street"
         style = "cinematic neon noir"
         environment = "cyberpunk_street_v1"
@@ -184,9 +195,19 @@ def _fallback_plan(
     elif "niebla" in normalized or "fog" in normalized:
         weather = "fog"
 
-    has_character = any(w in normalized for w in ["personaje", "character", "hero", "heroe"])
-    character = "protagonista_v2" if has_character else None
-    animation = "walk_v1" if any(w in normalized for w in ["camina", "walk", "walking"]) else "idle_v1"
+    if any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]) or scene == "news studio":
+        character: str | None = "cotorra_v1"
+    elif any(w in normalized for w in ["personaje", "character", "hero", "heroe"]):
+        character = "protagonista_v2"
+    else:
+        character = None
+
+    if any(w in normalized for w in ["habla", "presenta", "anuncia", "noticia"]) or scene == "news studio":
+        animation = "talk_v1"
+    elif any(w in normalized for w in ["camina", "walk", "walking"]):
+        animation = "walk_v1"
+    else:
+        animation = "idle_v1"
 
     templates = [
         {
@@ -195,16 +216,16 @@ def _fallback_plan(
             "style": style,
             "duration_seconds": duration_seconds,
             "fps": fps,
-            "resolution": DEFAULT_RESOLUTION,
+            "resolution": resolution,
             "camera": {"movement": "static", "lens_mm": 24},
             "lighting": lighting_base,
-            "subject": "empty scene" if not character else "distant figure",
-            "action": "stands still in the distance",
+            "subject": "cotorra news anchor" if character == "cotorra_v1" else ("distant figure" if character else "empty scene"),
+            "action": "presents the news" if animation == "talk_v1" else "stands still in the distance",
             "weather": weather,
             "seed": _seed(prompt, 0),
             "character": character,
             "environment": environment,
-            "animation": "idle_v1" if character else None,
+            "animation": (animation if animation == "talk_v1" else "idle_v1") if character else None,
         },
         {
             "_shot_role": "action",
@@ -212,11 +233,11 @@ def _fallback_plan(
             "style": style,
             "duration_seconds": duration_seconds,
             "fps": fps,
-            "resolution": DEFAULT_RESOLUTION,
+            "resolution": resolution,
             "camera": {"movement": "orbit", "lens_mm": 35},
             "lighting": lighting_base,
-            "subject": "hero character" if character else "main subject",
-            "action": "walks forward across the frame",
+            "subject": "cotorra news anchor" if character == "cotorra_v1" else ("hero character" if character else "main subject"),
+            "action": "presents the news gesturing" if animation == "talk_v1" else "walks forward across the frame",
             "weather": weather,
             "seed": _seed(prompt, 1),
             "character": character,
@@ -229,18 +250,31 @@ def _fallback_plan(
             "style": style,
             "duration_seconds": duration_seconds,
             "fps": fps,
-            "resolution": DEFAULT_RESOLUTION,
+            "resolution": resolution,
             "camera": {"movement": "push_in", "lens_mm": 85},
             "lighting": lighting_base,
-            "subject": "hero character" if character else "main subject",
-            "action": "turns toward camera",
+            "subject": "cotorra news anchor" if character == "cotorra_v1" else ("hero character" if character else "main subject"),
+            "action": "talks directly to camera" if animation == "talk_v1" else "turns toward camera",
             "weather": weather,
             "seed": _seed(prompt, 2),
             "character": character,
             "environment": environment,
-            "animation": "idle_v1" if character else None,
+            "animation": (animation if animation == "talk_v1" else "idle_v1") if character else None,
         },
     ]
+
+    # Historia de noticiero: el plano intermedio sale del estudio y reporta
+    # desde la calle (plaza habanera) para que la secuencia cuente una historia.
+    if scene == "news studio" and character == "cotorra_v1" and n_shots >= 3:
+        templates[1].update({
+            "scene": "havana plaza",
+            "camera": {"movement": "dolly", "lens_mm": 35},
+            "lighting": "warm caribbean daylight",
+            "subject": "cotorra reporting from the street",
+            "action": "waddles across the plaza reporting",
+            "animation": "walk_v1",
+            "environment": None,
+        })
 
     return templates[:n_shots]
 

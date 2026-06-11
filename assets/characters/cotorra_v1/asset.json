@@ -1,0 +1,14 @@
+{
+  "id": "cotorra_v1",
+  "type": "character",
+  "name": "La Cotorra (mascota del canal)",
+  "source": "original_glb",
+  "path": "cotorra_v1.glb",
+  "metadata": {
+    "description": "Cotorra presentadora de noticias estilo claymation. Mascota original del canal (licencia propia). Rig de 9 huesos con pico articulado para hablar.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Beak", "Wing.L", "Wing.R", "Tail", "Leg.L", "Leg.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_cotorra.py"
+  }
+}

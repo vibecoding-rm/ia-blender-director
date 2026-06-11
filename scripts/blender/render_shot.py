@@ -372,10 +372,17 @@ def _create_subject(spec: dict, asset_refs: dict) -> bpy.types.Object:
 
 def _create_lighting(spec: dict) -> None:
     lighting = spec["lighting"].lower()
+    bright = any(w in lighting for w in ("bright", "studio", "broadcast", "daylight"))
+
     bpy.ops.object.light_add(type="AREA", location=(0, -4, 5))
     key = bpy.context.object
     key.name = "key_light"
-    key.data.energy = 750 if "neon" in lighting else 500
+    if bright:
+        key.data.energy = 1600
+    elif "neon" in lighting:
+        key.data.energy = 750
+    else:
+        key.data.energy = 500
     key.data.size = 4
     if "sunset" in lighting:
         key.data.color = (1.0, 0.65, 0.35)
@@ -386,7 +393,15 @@ def _create_lighting(spec: dict) -> None:
     rim = bpy.context.object
     rim.name = "rim_light"
     rim.data.energy = 250
-    rim.data.color = (1.0, 0.1, 0.2)
+    rim.data.color = (1.0, 1.0, 1.0) if bright else (1.0, 0.1, 0.2)
+
+    if bright:
+        # Soft fill from the opposite side so studio scenes read flat and clean
+        bpy.ops.object.light_add(type="AREA", location=(3, -3, 4))
+        fill = bpy.context.object
+        fill.name = "fill_light"
+        fill.data.energy = 700
+        fill.data.size = 5
 
 
 def _create_camera(spec: dict, subject: bpy.types.Object) -> bpy.types.Object:

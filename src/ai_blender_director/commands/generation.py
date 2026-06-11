@@ -5,6 +5,13 @@ from ..generator import write_generated_shot
 from ..io import load_shot_spec
 from ..planner import write_shot_plan
 
+VERTICAL_RESOLUTION = {"width": 720, "height": 1280}
+
+
+def resolution_for(args: argparse.Namespace) -> dict[str, int] | None:
+    """9:16 vertical resolution for Shorts/TikTok/Reels when --vertical is set."""
+    return VERTICAL_RESOLUTION if getattr(args, "vertical", False) else None
+
 
 def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     validate_parser = subparsers.add_parser("validate", help="Validate a shot JSON file.")
@@ -15,6 +22,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     generate_parser.add_argument("--output-dir", type=Path, default=Path("generated/shots"))
     generate_parser.add_argument("--duration", type=int, default=4)
     generate_parser.add_argument("--fps", type=int, default=24)
+    generate_parser.add_argument("--vertical", action="store_true", help="Formato vertical 9:16 (Shorts/TikTok).")
 
     create_parser = subparsers.add_parser("create", help="Generate a shot from a prompt and optionally render it.")
     create_parser.add_argument("prompt")
@@ -26,6 +34,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     create_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
     create_parser.add_argument("--render", action="store_true")
     create_parser.add_argument("--dry-run", action="store_true")
+    create_parser.add_argument("--vertical", action="store_true", help="Formato vertical 9:16 (Shorts/TikTok).")
 
     plan_parser = subparsers.add_parser(
         "plan",
@@ -41,6 +50,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     plan_parser.add_argument("--profile", choices=["preview", "final"], default="preview")
     plan_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
     plan_parser.add_argument("--output-video", type=Path, default=None, help="Path for the final concatenated MP4.")
+    plan_parser.add_argument("--vertical", action="store_true", help="Formato vertical 9:16 (Shorts/TikTok).")
 
 
 def handle_validate(args: argparse.Namespace) -> int:
@@ -58,6 +68,7 @@ def handle_generate(args: argparse.Namespace) -> int:
         args.output_dir,
         duration_seconds=args.duration,
         fps=args.fps,
+        resolution=resolution_for(args),
     )
     spec = load_shot_spec(path)
     print(path)
@@ -73,6 +84,7 @@ def handle_create(args: argparse.Namespace) -> int:
         args.shot_output_dir,
         duration_seconds=args.duration,
         fps=args.fps,
+        resolution=resolution_for(args),
     )
     spec = load_shot_spec(shot_path)
     print(f"shot: {shot_path}", flush=True)
@@ -95,6 +107,7 @@ def handle_plan(args: argparse.Namespace) -> int:
         n_shots=args.shots,
         duration_seconds=args.duration,
         fps=args.fps,
+        resolution=resolution_for(args),
     )
 
     print(f"plan: {len(paths)} plano(s) generado(s)", flush=True)
@@ -130,15 +143,17 @@ def handle_plan(args: argparse.Namespace) -> int:
     for jd in job_dirs:
         spec = load_shot_spec(jd / "shot.json")
         comfy_dir = jd / "comfy_output"
-        passes_dir = jd / "passes"
         if comfy_dir.exists() and any(comfy_dir.glob("*.png")):
-            frames_dir, pattern = comfy_dir, "*.png"
-        else:
-            frames_dir, pattern = passes_dir, "beauty_frame_*.png"
-        shot_video = jd / "shot_video.mp4"
-        if assemble_frames_sync(frames_dir, shot_video, fps=spec.fps, pattern=pattern):
-            shot_videos.append(shot_video)
-            print(f"  ensamblado: {shot_video}", flush=True)
+            shot_video = jd / "shot_video.mp4"
+            if assemble_frames_sync(comfy_dir, shot_video, fps=spec.fps, pattern="*.png"):
+                shot_videos.append(shot_video)
+                print(f"  ensamblado (estilizado): {shot_video}", flush=True)
+            continue
+        # Sin estilización: usar directamente el video renderizado por Blender.
+        rendered = sorted(jd.glob("shot_*.mp4"))
+        if rendered:
+            shot_videos.append(rendered[0])
+            print(f"  video: {rendered[0]}", flush=True)
 
     if shot_videos:
         output_video.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,13 @@
+{
+  "id": "talk_v1",
+  "type": "animation",
+  "name": "Talk v1",
+  "source": "embedded_in_character_glb",
+  "path": null,
+  "metadata": {
+    "description": "48-frame news-anchor delivery: beak flaps, head nods, wing gestures. Embedded in cotorra_v1.glb as NLA action 'Talk'.",
+    "action_name": "Talk",
+    "fps": 24,
+    "frame_count": 48
+  }
+}

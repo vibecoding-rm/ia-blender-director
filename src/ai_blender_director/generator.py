@@ -28,11 +28,18 @@ _SHOT_SCHEMA = {
 }
 
 
-def generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int = 24) -> dict[str, Any]:
+def generate_shot(
+    prompt: str,
+    *,
+    duration_seconds: int = 4,
+    fps: int = 24,
+    resolution: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    resolution = resolution or DEFAULT_RESOLUTION
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         print("warning: OPENROUTER_API_KEY is not set. Using basic fallback generator.", file=sys.stderr)
-        return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps)
+        return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
 
     try:
         from openai import OpenAI
@@ -56,7 +63,7 @@ def generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int = 24) -> d
             "style": data["style"],
             "duration_seconds": duration_seconds,
             "fps": fps,
-            "resolution": DEFAULT_RESOLUTION,
+            "resolution": resolution,
             "camera": {
                 "movement": data.get("camera_movement", "orbit"),
                 "lens_mm": int(data.get("camera_lens_mm", 35)),
@@ -75,14 +82,25 @@ def generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int = 24) -> d
 
     except Exception as exc:
         print(f"error calling OpenRouter API: {exc}. Using fallback generator.", file=sys.stderr)
-        return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps)
+        return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
 
 
-def _fallback_generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int = 24) -> dict[str, Any]:
+def _fallback_generate_shot(
+    prompt: str,
+    *,
+    duration_seconds: int = 4,
+    fps: int = 24,
+    resolution: dict[str, int] | None = None,
+) -> dict[str, Any]:
     """Procedural fallback for testing without API keys."""
+    resolution = resolution or DEFAULT_RESOLUTION
     normalized = " ".join(prompt.strip().lower().split())
 
-    if "cyberpunk" in normalized:
+    if any(w in normalized for w in ["noticia", "noticiero", "news", "estudio de tv"]):
+        scene = "news studio"
+        style = "claymation broadcast"
+        environment = None
+    elif "cyberpunk" in normalized:
         scene = "cyberpunk street"
         style = "cinematic neon noir"
         environment = "cyberpunk_street_v1"
@@ -116,23 +134,37 @@ def _fallback_generate_shot(prompt: str, *, duration_seconds: int = 4, fps: int 
     else:
         movement = "orbit"
 
+    if any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]):
+        character: str | None = "cotorra_v1"
+    elif any(w in normalized for w in ["personaje", "character", "hero", "heroe", "héroe", "persona", "hombre", "mujer", "soldado"]):
+        character = "protagonista_v2"
+    elif scene == "news studio":
+        character = "cotorra_v1"
+    else:
+        character = None
+
+    if any(w in normalized for w in ["habla", "presenta", "anuncia", "talk", "noticia"]):
+        animation: str | None = "talk_v1"
+    elif "camina" in normalized or "walk" in normalized:
+        animation = "walk_v1"
+    else:
+        animation = None
+
     shot = {
         "scene": scene,
         "style": style,
         "duration_seconds": duration_seconds,
         "fps": fps,
-        "resolution": DEFAULT_RESOLUTION,
+        "resolution": resolution,
         "camera": {"movement": movement, "lens_mm": 35},
-        "lighting": "soft cinematic studio light",
-        "subject": "test subject",
-        "action": "moves across the frame",
+        "lighting": "bright studio broadcast light" if scene == "news studio" else "soft cinematic studio light",
+        "subject": "cotorra news anchor" if character == "cotorra_v1" else "test subject",
+        "action": "talks to camera" if animation == "talk_v1" else "moves across the frame",
         "weather": weather,
         "seed": _seed_from_prompt(normalized),
-        "character": "protagonista_v2" if any(
-            w in normalized for w in ["personaje", "character", "hero", "heroe", "héroe", "persona", "hombre", "mujer", "soldado"]
-        ) else None,
+        "character": character,
         "environment": environment,
-        "animation": "walk_v1" if "camina" in normalized else None,
+        "animation": animation,
     }
     return shot
 
@@ -143,9 +175,10 @@ def write_generated_shot(
     *,
     duration_seconds: int = 4,
     fps: int = 24,
+    resolution: dict[str, int] | None = None,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
-    shot = generate_shot(prompt, duration_seconds=duration_seconds, fps=fps)
+    shot = generate_shot(prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
     filename = f"{_slug(prompt)}.json"
     path = output_dir / filename
     with path.open("w", encoding="utf-8") as file:
