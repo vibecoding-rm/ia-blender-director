@@ -13,6 +13,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+import ffmpeg
 
 ROOT = Path(__file__).resolve().parents[2]
 SFX_DIR = ROOT / "assets" / "audio" / "sfx"
@@ -20,7 +21,6 @@ MUSIC_BED = ROOT / "assets" / "audio" / "music_bed.mp3"
 
 # name -> ffmpeg lavfi recipe (mono 44.1k, short)
 _RECIPES: dict[str, list[str]] = {
-    # Sting de noticiero: dos tonos urgentes descendentes con eco corto
     "sting": [
         "-f", "lavfi",
         "-i", "sine=frequency=880:duration=0.18,asetrate=44100",
@@ -31,14 +31,12 @@ _RECIPES: dict[str, list[str]] = {
         "-filter_complex",
         "[0][1][2]concat=n=3:v=0:a=1,aecho=0.7:0.6:60:0.35,afade=t=out:st=0.7:d=0.15,volume=0.85",
     ],
-    # Whoosh: ruido blanco con barrido de paso-banda y fade rápido
     "whoosh": [
         "-f", "lavfi",
         "-i", "anoisesrc=color=white:duration=0.35:amplitude=0.7",
         "-af",
         "bandpass=frequency=900:width_type=h:width=600,afade=t=in:st=0:d=0.08,afade=t=out:st=0.18:d=0.17,volume=0.5",
     ],
-    # Ding: campanita para el dato clave / punchline
     "ding": [
         "-f", "lavfi",
         "-i", "sine=frequency=1318:duration=0.5",
@@ -82,57 +80,53 @@ def mix_audio_track(
     - El sting suena en t=0 (sobre la tarjeta de gancho).
     """
     sfx = ensure_sfx()
-    inputs: list[str] = ["-i", str(video)]
-    labels: list[str] = []
-    filters: list[str] = []
-    index = 1
-
+    
+    video_input = ffmpeg.input(str(video))
+    audio_streams = []
     voice_ctrl = None
+    
     if narration_wav is not None and narration_wav.exists():
-        inputs.extend(["-i", str(narration_wav)])
+        narration_input = ffmpeg.input(str(narration_wav)).audio
         delay_ms = max(0, int(narration_delay * 1000))
-        filters.append(f"[{index}:a]volume=1.0,adelay={delay_ms}|{delay_ms},asplit=2[voice_mix][voice_ctrl]")
-        labels.append("[voice_mix]")
-        voice_ctrl = "[voice_ctrl]"
-        index += 1
-
+        delayed_voice = narration_input.filter('volume', 1.0).filter('adelay', f"{delay_ms}|{delay_ms}")
+        if MUSIC_BED.exists():
+            split_node = delayed_voice.filter('asplit').node
+            voice_mix = split_node[0]
+            voice_ctrl = split_node[1]
+            audio_streams.append(voice_mix)
+        else:
+            audio_streams.append(delayed_voice)
+            voice_ctrl = None
+            
     if with_sting and "sting" in sfx:
-        inputs.extend(["-i", str(sfx["sting"])])
-        filters.append(f"[{index}:a]volume=0.9[sting]")
-        labels.append("[sting]")
-        index += 1
-
+        sting_stream = ffmpeg.input(str(sfx["sting"])).audio.filter('volume', 0.9)
+        audio_streams.append(sting_stream)
+        
     if "whoosh" in sfx:
         for t in cut_times:
-            inputs.extend(["-i", str(sfx["whoosh"])])
             delay_ms = max(0, int(t * 1000))
-            filters.append(f"[{index}:a]volume=0.6,adelay={delay_ms}|{delay_ms}[w{index}]")
-            labels.append(f"[w{index}]")
-            index += 1
-
+            whoosh_stream = ffmpeg.input(str(sfx["whoosh"])).audio.filter('volume', 0.6).filter('adelay', f"{delay_ms}|{delay_ms}")
+            audio_streams.append(whoosh_stream)
+            
     if MUSIC_BED.exists():
-        inputs.extend(["-i", str(MUSIC_BED)])
+        bgm_stream = ffmpeg.input(str(MUSIC_BED)).audio
         if voice_ctrl:
-            filters.append(f"[{index}:a]volume=0.25[bgm_raw]")
-            filters.append(f"[bgm_raw]{voice_ctrl}sidechaincompress=threshold=0.05:ratio=4:attack=50:release=300[ducked]")
-            labels.append("[ducked]")
+            bgm_raw = bgm_stream.filter('volume', 0.25)
+            bgm_ducked = ffmpeg.filter((bgm_raw, voice_ctrl), 'sidechaincompress', threshold=0.05, ratio=4, attack=50, release=300)
+            audio_streams.append(bgm_ducked)
         else:
-            filters.append(f"[{index}:a]volume=0.1[bgm]")
-            labels.append("[bgm]")
-        index += 1
-
-    if not labels:
+            bgm_simple = bgm_stream.filter('volume', 0.1)
+            audio_streams.append(bgm_simple)
+            
+    if not audio_streams:
         print("warning: nada que mezclar (sin narración ni SFX)", file=sys.stderr)
         return False
-
-    filter_complex = ";".join(filters) + f";{''.join(labels)}amix=inputs={len(labels)}:normalize=0[aout]"
-    result = subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", *inputs,
-         "-filter_complex", filter_complex,
-         "-map", "0:v:0", "-map", "[aout]",
-         "-c:v", "copy", "-c:a", "aac", "-shortest", str(output)],
-        capture_output=True,
-    )
+        
+    aout = ffmpeg.filter(audio_streams, 'amix', inputs=len(audio_streams), normalize=0).filter('apad')
+    stream = ffmpeg.output(video_input.video, aout, str(output), vcodec='copy', acodec='aac').global_args('-shortest').overwrite_output()
+    
+    cmd = ffmpeg.compile(stream)
+    result = subprocess.run(cmd, capture_output=True)
     if result.returncode != 0:
         print(f"error: mezcla de audio falló: {result.stderr.decode(errors='replace')[-300:]}", file=sys.stderr)
         return False

@@ -36,6 +36,10 @@ _SCENE_SCHEMA = {
             "character_asset": "protagonista_v2 for humans, null otherwise",
             "environment_asset": "cyberpunk_street_v1, forest_v1, or null",
             "animation_asset": "walk_v1, run_v1, idle_v1, or null",
+            "transition": {
+                "type": "one of: none, fade, wipeleft, wiperight, slideleft, slideright, dissolve",
+                "duration": "float: transition duration in seconds (default: 0.5)"
+            }
         }
     ],
 }
@@ -183,6 +187,10 @@ def _raw_item_to_shot(
     fps: int,
     resolution: dict[str, int] | None = None,
 ) -> dict[str, Any]:
+    raw_transition = item.get("transition") or {}
+    transition_type = raw_transition.get("type", "none") if isinstance(raw_transition, dict) else "none"
+    transition_duration = raw_transition.get("duration", 0.5) if isinstance(raw_transition, dict) else 0.5
+
     return {
         "_shot_role": item.get("shot_role", "action"),
         "scene": item.get("scene", "cinematic stage"),
@@ -202,6 +210,10 @@ def _raw_item_to_shot(
         "character": item.get("character_asset"),
         "environment": item.get("environment_asset"),
         "animation": item.get("animation_asset"),
+        "transition": {
+            "type": transition_type,
+            "duration": transition_duration
+        }
     }
 
 

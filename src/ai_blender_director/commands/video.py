@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import ffmpeg
 
 
 async def assemble_video(input_dir: Path, output_file: Path, fps: int = 24, broadcaster=None, job_id: str = "") -> bool:
@@ -16,16 +17,10 @@ async def assemble_video(input_dir: Path, output_file: Path, fps: int = 24, broa
             print(msg, file=sys.stderr)
         return False
 
-    command = [
-        "ffmpeg",
-        "-y",
-        "-framerate", str(fps),
-        "-pattern_type", "glob",
-        "-i", f"{input_dir}/*.png",
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        str(output_file)
-    ]
+    # Compile using ffmpeg-python
+    stream = ffmpeg.input(str(input_dir / "*.png"), pattern_type='glob', framerate=fps)
+    stream = ffmpeg.output(stream, str(output_file), vcodec='libx264', pix_fmt='yuv420p').overwrite_output()
+    command = ffmpeg.compile(stream)
 
     msg = f"Running: {' '.join(command)}\n"
     if broadcaster:
@@ -74,12 +69,12 @@ async def concat_videos_async(
     concat_path = output_file.parent / "concat_list.txt"
     concat_path.write_text("\n".join(f"file '{v.resolve()}'" for v in video_files))
 
+    stream = ffmpeg.input(str(concat_path), f='concat', safe=0)
+    stream = ffmpeg.output(stream, str(output_file), c='copy').overwrite_output()
+    command = ffmpeg.compile(stream)
+
     proc = await asyncio.create_subprocess_exec(
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0",
-        "-i", str(concat_path),
-        "-c", "copy",
-        str(output_file),
+        *command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
@@ -113,15 +108,10 @@ def assemble_frames_sync(
         print(f"No frames matching '{pattern}' in {frames_dir}", file=sys.stderr)
         return False
 
-    args = [
-        "ffmpeg", "-y",
-        "-framerate", str(fps),
-        "-pattern_type", "glob",
-        "-i", str(frames_dir / pattern),
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        str(output_file),
-    ]
+    stream = ffmpeg.input(str(frames_dir / pattern), pattern_type='glob', framerate=fps)
+    stream = ffmpeg.output(stream, str(output_file), vcodec='libx264', pix_fmt='yuv420p').overwrite_output()
+    args = ffmpeg.compile(stream)
+
     result = subprocess.run(args, capture_output=True)  # noqa: S603 — list args, no shell injection
     if result.returncode != 0:
         print(result.stderr.decode(errors="replace"), file=sys.stderr)
@@ -139,13 +129,10 @@ def concat_videos_sync(video_files: list[Path], output_file: Path) -> bool:
             tmp.write(f"file '{v.resolve()}'\n")
         tmp.close()
 
-        args = [
-            "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", tmp.name,
-            "-c", "copy",
-            str(output_file),
-        ]
+        stream = ffmpeg.input(tmp.name, f='concat', safe=0)
+        stream = ffmpeg.output(stream, str(output_file), c='copy').overwrite_output()
+        args = ffmpeg.compile(stream)
+
         result = subprocess.run(args, capture_output=True)  # noqa: S603 — list args, no shell injection
         if result.returncode != 0:
             print(result.stderr.decode(errors="replace"), file=sys.stderr)

@@ -36,7 +36,8 @@ def generate_shot(
     resolution: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     resolution = resolution or DEFAULT_RESOLUTION
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    from .config import settings
+    api_key = settings.openrouter_api_key
     if not api_key:
         print("warning: OPENROUTER_API_KEY is not set. Using basic fallback generator.", file=sys.stderr)
         return _fallback_generate_shot(prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
