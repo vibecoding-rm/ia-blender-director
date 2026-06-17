@@ -91,6 +91,12 @@
                     </button>
 
                     <div class="plan-preview" v-if="planShots.length > 0">
+                        <div class="form-group" style="margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                            <label style="color: var(--accent);">Post-Production Specs</label>
+                            <input type="text" v-model="directorPlan.hook_title" class="edit-input" placeholder="Hook Title (e.g. BREAKING NEWS)" style="width: 100%; margin-bottom: 0.5rem; font-weight: bold;">
+                            <textarea v-model="directorPlan.narration_text" class="edit-input" rows="3" placeholder="Voiceover Script (TTS)..." style="width: 100%; resize: vertical;"></textarea>
+                        </div>
+                        
                         <div class="shot-card" v-for="(shot, index) in planShots" :key="index" style="flex-direction: column; gap: 0.5rem;">
                             <div style="display: flex; align-items: center; gap: 0.75rem; width: 100%;">
                                 <span class="shot-number">{{ index + 1 }}</span>

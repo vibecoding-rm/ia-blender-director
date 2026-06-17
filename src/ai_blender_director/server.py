@@ -91,6 +91,8 @@ class DirectorRenderRequest(BaseModel):
     fps: int = 24
     workflow: str = "stylization_v1"
     shots: list[dict] | None = None
+    hook_title: str | None = None
+    narration_text: str | None = None
 
 
 class LogBroadcaster:
@@ -262,7 +264,7 @@ async def _run_pipeline_inner(job: RenderJob, workflow: str, fps: int):
         append_index_event(INDEX_PATH, job, "finished", status="failed")
 
 
-async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow: str, fps: int) -> None:
+async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow: str, fps: int, hook_title: str | None = None, narration_text: str | None = None) -> None:
     try:
         broadcaster.add_log(plan_id, f"=== DIRECTOR PLAN — {len(jobs)} shot(s) ===\n")
 
@@ -282,17 +284,39 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow:
             if (job.job_dir / "comfy_output" / "final_render.mp4").exists()
         ]
 
-        broadcaster.add_log(plan_id, f"\n=== CONCATENATING {len(shot_videos)} video(s) ===\n")
+        broadcaster.add_log(plan_id, f"\n=== POSTPRODUCTION (Hook + TTS + Subtitles + Concat) ===\n")
 
         if shot_videos:
             plan_dir = PLANS_DIR / plan_id
             plan_dir.mkdir(parents=True, exist_ok=True)
             final_video = plan_dir / "final.mp4"
 
-            ok = await concat_videos_async(
-                shot_videos, final_video, broadcaster=broadcaster, job_id=plan_id
+            from .postproduction import produce_short
+            from .io import load_shot_spec
+            
+            shot_durations = []
+            res_tuple = (1280, 720)
+            
+            for job in jobs:
+                if (job.job_dir / "comfy_output" / "final_render.mp4").exists():
+                    spec = load_shot_spec(job.job_shot)
+                    shot_durations.append(spec.duration_seconds)
+                    res_tuple = (spec.resolution.width, spec.resolution.height)
+
+            result_path = await asyncio.to_thread(
+                produce_short,
+                shot_videos=shot_videos,
+                shot_durations=shot_durations,
+                output_video=final_video,
+                resolution=res_tuple,
+                fps=fps,
+                hook_title=hook_title,
+                narration_text=narration_text,
+                subtitles=True,
+                sfx=True,
             )
-            if ok:
+
+            if result_path and result_path.exists():
                 plans_state[plan_id].update({
                     "status": "completed",
                     "video": f"renders/plans/{plan_id}/final.mp4",
@@ -315,13 +339,13 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow:
 
 @app.post("/api/director/plan")
 async def director_plan(req: DirectorPlanRequest):
-    from .planner import plan_shots
+    from .planner import plan_scene
 
-    shots = await asyncio.to_thread(
-        plan_shots, req.prompt, req.n_shots,
+    scene_data = await asyncio.to_thread(
+        plan_scene, req.prompt, req.n_shots,
         duration_seconds=req.duration, fps=req.fps,
     )
-    return {"shots": shots}
+    return scene_data
 
 
 @app.post("/api/director/render")
@@ -353,7 +377,7 @@ async def director_render(req: DirectorRenderRequest, background_tasks: Backgrou
     
     await _save_plans_state()
 
-    background_tasks.add_task(run_plan_pipeline_async, plan_id, jobs, req.workflow, req.fps)
+    background_tasks.add_task(run_plan_pipeline_async, plan_id, jobs, req.workflow, req.fps, req.hook_title, req.narration_text)
     return {"plan_id": plan_id, "job_ids": [j.job_id for j in jobs], "n_shots": len(jobs)}
 
 

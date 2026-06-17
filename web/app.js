@@ -14,11 +14,12 @@ createApp({
         });
         const isSubmittingSingle = ref(false);
 
-        // Director plan state
         const directorPlan = reactive({
             prompt: '',
             n_shots: 3,
-            duration: 4
+            duration: 4,
+            hook_title: '',
+            narration_text: ''
         });
         const planShots = ref([]);
         const isPreviewing = ref(false);
@@ -109,7 +110,9 @@ createApp({
             planShots.value = [];
             try {
                 const data = await api.fetchDirectorPlan(directorPlan);
-                planShots.value = data.shots;
+                planShots.value = data.shots || [];
+                directorPlan.hook_title = data.hook_title || '';
+                directorPlan.narration_text = data.narration_text || '';
             } catch (err) {
                 alert('Error generating plan');
             } finally {

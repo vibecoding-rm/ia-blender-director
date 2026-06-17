@@ -18,8 +18,10 @@ DEFAULT_RESOLUTION = {"width": 1280, "height": 720}
 _OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-_PLAN_SCHEMA = {
+_SCENE_SCHEMA = {
     "title": "short title for the video concept (3-6 words)",
+    "hook_title": "catchy on-screen text for the first 1.5 seconds (3-5 words) or null",
+    "narration_text": "voiceover script for the entire video to be read by TTS (30-50 words) or null",
     "shots": [
         {
             "shot_role": "one of: establishing, action, close_up",
@@ -43,28 +45,34 @@ _PLAN_SCHEMA = {
 # Función principal
 # ---------------------------------------------------------------------------
 
-def plan_shots(
+def plan_scene(
     prompt: str,
     n_shots: int = 3,
     *,
     duration_seconds: int = 4,
     fps: int = 24,
     resolution: dict[str, int] | None = None,
-) -> list[dict[str, Any]]:
-    """Convierte una idea en una lista de dicts ShotSpec listos para guardar."""
+) -> dict[str, Any]:
+    """Convierte una idea en un dict con título, narración y planos (SceneSpec)."""
     resolution = resolution or DEFAULT_RESOLUTION
     from .config import settings
     api_key = settings.openrouter_api_key
     if not api_key:
-        logger.warning("OPENROUTER_API_KEY no está configurada. Usando generador de respaldo.")
-        return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+        logger.warning("OPENROUTER_API_KEY no está configurada. Usando generador de respaldo para la escena.")
+        shots = _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+        return {
+            "title": prompt[:30],
+            "hook_title": "NOTICIA URGENTE" if "noticia" in prompt.lower() else None,
+            "narration_text": None,
+            "shots": shots
+        }
 
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
         system = (
             "Eres un AI Director cinematográfico. Responde SOLO con un JSON válido — sin markdown ni explicaciones.\n"
-            f"El JSON debe seguir exactamente este esquema:\n{json.dumps(_PLAN_SCHEMA, indent=2, ensure_ascii=False)}\n"
+            f"El JSON debe seguir exactamente este esquema:\n{json.dumps(_SCENE_SCHEMA, indent=2, ensure_ascii=False)}\n"
             f"El campo 'shots' debe tener exactamente {n_shots} elementos."
         )
         user_msg = (
@@ -85,20 +93,50 @@ def plan_shots(
             data = json.loads(response.choices[0].message.content)
         except json.JSONDecodeError as e:
             logger.error(f"Error parseando JSON del LLM: {e}. Usando generador de respaldo.")
-            return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+            shots = _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+            return {"title": "Fallback", "hook_title": None, "narration_text": None, "shots": shots}
             
         raw_shots = data.get("shots", [])[:n_shots]
         shots = [
             _raw_item_to_shot(item, i, prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
             for i, item in enumerate(raw_shots)
         ]
+        
+        # Validar
+        from .models import ShotSpec
         for shot in shots:
             ShotSpec.from_dict(shot)
-        return shots
+            
+        return {
+            "title": data.get("title", prompt[:30]),
+            "hook_title": data.get("hook_title"),
+            "narration_text": data.get("narration_text"),
+            "shots": shots
+        }
 
     except Exception as exc:
-        logger.error(f"Error llamando a OpenRouter: {exc}. Usando generador de respaldo.")
-        return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+        logger.error(f"Error llamando a OpenRouter en plan_scene: {exc}. Usando generador de respaldo.")
+        shots = _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+        return {"title": "Fallback", "hook_title": None, "narration_text": None, "shots": shots}
+
+
+def plan_shots(
+    prompt: str,
+    n_shots: int = 3,
+    *,
+    duration_seconds: int = 4,
+    fps: int = 24,
+    resolution: dict[str, int] | None = None,
+) -> list[dict[str, Any]]:
+    """Convierte una idea en una lista de dicts ShotSpec listos para guardar."""
+    resolution = resolution or DEFAULT_RESOLUTION
+    from .config import settings
+    api_key = settings.openrouter_api_key
+    scene_data = plan_scene(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+    return scene_data["shots"]
+    pass
+            
+    pass
 
 
 def write_shot_plan(
