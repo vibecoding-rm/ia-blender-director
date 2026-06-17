@@ -59,6 +59,21 @@ def run_comfy_render(index_path: Path, job_id: str, workflow_name: str, comfy_ur
         print(f"error: workflow not found at {workflow_path}", file=sys.stderr)
         return 2
 
+    shot_path = job_dir / "shot.json"
+    shot_spec = _read_json_if_exists(shot_path) or {}
+    
+    positive_prompt = "masterpiece, highly detailed, photorealistic, cinematic lighting"
+    if shot_spec:
+        style = shot_spec.get("style", "")
+        lighting = shot_spec.get("lighting", "")
+        subject = shot_spec.get("subject", "")
+        action = shot_spec.get("action", "")
+        scene = shot_spec.get("scene", "")
+        weather = shot_spec.get("weather", "") or ""
+        parts = [p for p in [style, scene, subject, action, lighting, weather] if p]
+        if parts:
+            positive_prompt = f"masterpiece, highly detailed, photorealistic, {', '.join(parts)}"
+
     depth_pass = passes.get("depth_proxy")
     depth_path = Path(depth_pass) if depth_pass else None
 
@@ -78,13 +93,17 @@ def run_comfy_render(index_path: Path, job_id: str, workflow_name: str, comfy_ur
                 depth_remote = f"{depth_res.get('subfolder', subfolder)}/{depth_res.get('name')}"
 
             for node_data in workflow.values():
-                if node_data.get("class_type") != "LoadImage":
-                    continue
+                class_type = node_data.get("class_type")
                 title = node_data.get("_meta", {}).get("title", "")
-                if "Depth" in title and depth_remote:
-                    node_data["inputs"]["image"] = depth_remote
-                else:
-                    node_data["inputs"]["image"] = beauty_remote
+                
+                if class_type == "LoadImage":
+                    if "Depth" in title and depth_remote:
+                        node_data["inputs"]["image"] = depth_remote
+                    else:
+                        node_data["inputs"]["image"] = beauty_remote
+                elif class_type == "CLIPTextEncode":
+                    if "(Positive)" in title:
+                        node_data["inputs"]["text"] = positive_prompt
 
             print("queuing prompt...")
             prompt_res = client.queue_prompt(workflow)
