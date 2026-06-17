@@ -90,6 +90,7 @@ class DirectorRenderRequest(BaseModel):
     duration: int = 4
     fps: int = 24
     workflow: str = "stylization_v1"
+    shots: list[dict] | None = None
 
 
 class LogBroadcaster:
@@ -320,21 +321,7 @@ async def director_plan(req: DirectorPlanRequest):
         plan_shots, req.prompt, req.n_shots,
         duration_seconds=req.duration, fps=req.fps,
     )
-    return {
-        "shots": [
-            {
-                "role": s.get("_shot_role", "shot"),
-                "scene": s["scene"],
-                "style": s["style"],
-                "camera_movement": s["camera"]["movement"],
-                "lens_mm": s["camera"]["lens_mm"],
-                "weather": s.get("weather"),
-                "subject": s["subject"],
-                "action": s["action"],
-            }
-            for s in shots
-        ]
-    }
+    return {"shots": shots}
 
 
 @app.post("/api/director/render")
@@ -344,6 +331,7 @@ async def director_render(req: DirectorRenderRequest, background_tasks: Backgrou
     paths = await asyncio.to_thread(
         write_shot_plan, req.prompt, SHOTS_DIR,
         n_shots=req.n_shots, duration_seconds=req.duration, fps=req.fps,
+        precomputed_shots=req.shots
     )
 
     jobs = []

@@ -109,10 +109,15 @@ def write_shot_plan(
     duration_seconds: int = 4,
     fps: int = 24,
     resolution: dict[str, int] | None = None,
+    precomputed_shots: list[dict] | None = None,
 ) -> list[Path]:
     """Genera y guarda todos los planos del plan. Devuelve las rutas guardadas."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    shots = plan_shots(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+    if precomputed_shots:
+        shots = precomputed_shots
+    else:
+        shots = plan_shots(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+    
     base_slug = _slug(prompt)
     paths: list[Path] = []
     for i, shot in enumerate(shots, start=1):

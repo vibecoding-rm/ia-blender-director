@@ -537,3 +537,24 @@ textarea {
     margin: 0;
     flex-grow: 1;
 }
+
+/* Editable Shot Forms */
+.edit-input, .edit-select {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    transition: border-color 0.2s;
+}
+
+.edit-input:focus, .edit-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.edit-select option {
+    background: var(--bg-dark);
+}
