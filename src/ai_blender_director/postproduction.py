@@ -228,14 +228,4 @@ def produce_short(
     return output_video
 
 
-def _concat_reencode(clips: list[Path], output: Path, *, fps: int) -> bool:
-    """Concatenates video clips and re-encodes them using ffmpeg-python."""
-    video_inputs = [ffmpeg.input(str(c)).video for c in clips]
-    concat_stream = ffmpeg.concat(*video_inputs, v=1, a=0)
-    stream = ffmpeg.output(concat_stream, str(output), r=fps, vcodec='libx264', pix_fmt='yuv420p', an=None).overwrite_output()
-    try:
-        ffmpeg.run(stream, capture_stdout=True, capture_stderr=True)
-        return output.exists()
-    except ffmpeg.Error as e:
-        print(f"error: concat falló: {e.stderr.decode(errors='replace')[-300:]}", file=sys.stderr)
-        return False
+

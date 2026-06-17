@@ -1,18 +1,15 @@
-"""Director Agent: convierte una idea en un plan de varios planos (shots)."""
-
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-import os
-import sys
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
+from .config import settings
 from .models import ShotSpec
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_RESOLUTION = {"width": 1280, "height": 720}
 _OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
@@ -59,7 +56,6 @@ def plan_scene(
 ) -> dict[str, Any]:
     """Convierte una idea en un dict con título, narración y planos (SceneSpec)."""
     resolution = resolution or DEFAULT_RESOLUTION
-    from .config import settings
     api_key = settings.openrouter_api_key
     if not api_key:
         logger.warning("OPENROUTER_API_KEY no está configurada. Usando generador de respaldo para la escena.")
@@ -106,8 +102,7 @@ def plan_scene(
             for i, item in enumerate(raw_shots)
         ]
         
-        # Validar
-        from .models import ShotSpec
+        # Validate each shot
         for shot in shots:
             ShotSpec.from_dict(shot)
             
@@ -134,13 +129,8 @@ def plan_shots(
 ) -> list[dict[str, Any]]:
     """Convierte una idea en una lista de dicts ShotSpec listos para guardar."""
     resolution = resolution or DEFAULT_RESOLUTION
-    from .config import settings
-    api_key = settings.openrouter_api_key
     scene_data = plan_scene(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
     return scene_data["shots"]
-    pass
-            
-    pass
 
 
 def write_shot_plan(

@@ -359,20 +359,19 @@ async def director_render(req: DirectorRenderRequest, background_tasks: Backgrou
     from .tts import synthesize, media_duration
 
     plan_id = f"plan_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
-    PLANS_DIR.mkdir(parents=True, exist_ok=True)
-    plan_dir = PLANS_DIR / plan_id
     
     # INTELLIGENT PACING: Calculate voiceover duration to assign perfect shot length
     duration = req.duration
-    narration_wav = plan_dir / "narration.wav"
+    narration_wav = PLANS_DIR / plan_id / "narration.wav"
     if req.narration_text:
+        PLANS_DIR.mkdir(parents=True, exist_ok=True)
         ok = await asyncio.to_thread(synthesize, req.narration_text, narration_wav)
         if ok:
             narration_dur = await asyncio.to_thread(media_duration, narration_wav)
             if narration_dur:
                 total_video_time = narration_dur + 0.5  # Add a tiny padding
                 duration = max(1, int(total_video_time / req.n_shots) + 1)
-                print(f"Intelligent Pacing: Audio is {narration_dur}s. Adjusting {req.n_shots} shots to {duration}s each.")
+                logger.info(f"Intelligent Pacing: Audio is {narration_dur}s. Adjusting {req.n_shots} shots to {duration}s each.")
 
     paths = await asyncio.to_thread(
         write_shot_plan, req.prompt, SHOTS_DIR,
@@ -386,8 +385,6 @@ async def director_render(req: DirectorRenderRequest, background_tasks: Backgrou
         append_index_event(INDEX_PATH, job, "created", status="created")
         jobs.append(job)
 
-    plan_id = f"plan_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
-    
     async with plans_state_lock:
         plans_state[plan_id] = {
             "plan_id": plan_id,
