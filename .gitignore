@@ -30,3 +30,6 @@ renders/jobs.db
 renders/cuba_news_2026/
 assets/voices/*.onnx
 assets/voices/*.onnx.json
+
+# Credenciales locales (nunca subir)
+git
