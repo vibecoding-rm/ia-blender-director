@@ -1,8 +1,13 @@
+import base64
+import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
 from PIL import Image, ImageStat
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -41,22 +46,98 @@ class VisionCritic:
         self.total_pixels = self.width * self.height
 
     def analyze(self) -> List[CriticFeedback]:
-        """Run all heuristic rules and return the feedback."""
+        """Run LLM analysis if available, otherwise fallback to heuristic rules."""
         feedback = []
 
-        for rule in (
-            self.analyze_distance,
-            self.analyze_framing,
-            self.analyze_lighting,
-            self.analyze_overexposure,
-            self.analyze_contrast,
-            self.analyze_edge_coverage,
-        ):
-            result = rule()
-            if result:
-                feedback.append(result)
+        # 1. Intentar usar Inteligencia Artificial Multimodal
+        llm_feedback = self.analyze_with_llm()
+        if llm_feedback is not None:
+            logger.info(f"VisionCritic (LLM) generado {len(llm_feedback)} sugerencias.")
+            feedback.extend(llm_feedback)
+        else:
+            logger.info("VisionCritic (LLM) no disponible o falló. Usando heurísticas matemáticas de respaldo.")
+            # 2. Fallback a reglas matemáticas de la imagen
+            for rule in (
+                self.analyze_distance,
+                self.analyze_framing,
+                self.analyze_lighting,
+                self.analyze_overexposure,
+                self.analyze_contrast,
+                self.analyze_edge_coverage,
+            ):
+                result = rule()
+                if result:
+                    feedback.append(result)
 
         return feedback
+
+    def analyze_with_llm(self) -> List[CriticFeedback] | None:
+        """Envía el beauty pass al LLM para crítica visual experta."""
+        from .config import settings
+        api_key = settings.openrouter_api_key
+        if not api_key:
+            return None
+
+        try:
+            from openai import OpenAI
+            
+            with open(self.beauty_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+                
+            client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+            
+            system_prompt = (
+                "Eres un Director de Fotografía experto. Analiza el siguiente render 3D (un preview de baja resolución). "
+                "Ignora por completo el ruido (noise), los artefactos de bajo sampleo y la falta de anti-aliasing. "
+                "Enfócate estrictamente en:\n"
+                "1. Encuadre (Framing) y Posicionamiento\n"
+                "2. Iluminación (Lighting) y Contraste\n"
+                "3. Composición General\n\n"
+                "Responde SOLO con un objeto JSON válido. El JSON debe contener exactamente una clave llamada 'feedback', "
+                "cuyo valor sea una lista de objetos. Cada objeto debe tener:\n"
+                "- 'category': 'Framing', 'Lighting', o 'Composition'\n"
+                "- 'level': 'WARNING' (si es un error inaceptable que arruina el plano) o 'SUGGESTION' (si es una mejora menor)\n"
+                "- 'message': descripción técnica corta del problema estético."
+            )
+            
+            response = client.chat.completions.create(
+                model="google/gemini-2.0-flash-001",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user", 
+                        "content": [
+                            {"type": "text", "text": "Evalúa estéticamente este render y devuelve tu JSON de feedback."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
+                        ]
+                    }
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.4,
+            )
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            
+            raw_feedback = data.get("feedback", [])
+            if not isinstance(raw_feedback, list):
+                return None
+                
+            result = []
+            for item in raw_feedback:
+                if isinstance(item, dict) and "category" in item and "level" in item and "message" in item:
+                    result.append(
+                        CriticFeedback(
+                            category=item["category"],
+                            level=item["level"],
+                            message=item["message"]
+                        )
+                    )
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error en VisionCritic Multimodal: {e}")
+            return None
 
     def analyze_distance(self) -> CriticFeedback | None:
         """Rule: if subject occupies less than 10% of the frame, the camera is too far."""
