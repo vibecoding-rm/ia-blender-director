@@ -303,6 +303,10 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow:
                     shot_durations.append(spec.duration_seconds)
                     res_tuple = (spec.resolution.width, spec.resolution.height)
 
+            # Use the pre-synthesized audio from Intelligent Pacing if it exists
+            pre_synth_wav = PLANS_DIR / plan_id / "narration.wav"
+            voice_path = pre_synth_wav if pre_synth_wav.exists() else None
+
             result_path = await asyncio.to_thread(
                 produce_short,
                 shot_videos=shot_videos,
@@ -311,7 +315,8 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow:
                 resolution=res_tuple,
                 fps=fps,
                 hook_title=hook_title,
-                narration_text=narration_text,
+                narration_text=req.narration_text if not voice_path else None,  # Skip internal synthesis if we did it
+                voice=voice_path,
                 subtitles=True,
                 sfx=True,
             )
@@ -351,10 +356,27 @@ async def director_plan(req: DirectorPlanRequest):
 @app.post("/api/director/render")
 async def director_render(req: DirectorRenderRequest, background_tasks: BackgroundTasks):
     from .planner import write_shot_plan
+    from .tts import synthesize, media_duration
+
+    plan_id = f"plan_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
+    PLANS_DIR.mkdir(parents=True, exist_ok=True)
+    plan_dir = PLANS_DIR / plan_id
+    
+    # INTELLIGENT PACING: Calculate voiceover duration to assign perfect shot length
+    duration = req.duration
+    narration_wav = plan_dir / "narration.wav"
+    if req.narration_text:
+        ok = await asyncio.to_thread(synthesize, req.narration_text, narration_wav)
+        if ok:
+            narration_dur = await asyncio.to_thread(media_duration, narration_wav)
+            if narration_dur:
+                total_video_time = narration_dur + 0.5  # Add a tiny padding
+                duration = max(1, int(total_video_time / req.n_shots) + 1)
+                print(f"Intelligent Pacing: Audio is {narration_dur}s. Adjusting {req.n_shots} shots to {duration}s each.")
 
     paths = await asyncio.to_thread(
         write_shot_plan, req.prompt, SHOTS_DIR,
-        n_shots=req.n_shots, duration_seconds=req.duration, fps=req.fps,
+        n_shots=req.n_shots, duration_seconds=duration, fps=req.fps,
         precomputed_shots=req.shots
     )
 

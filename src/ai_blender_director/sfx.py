@@ -87,23 +87,39 @@ def mix_audio_track(
     filters: list[str] = []
     index = 1
 
-    def _add(path: Path, delay_s: float, volume: float = 1.0) -> None:
-        nonlocal index
-        inputs.extend(["-i", str(path)])
-        delay_ms = max(0, int(delay_s * 1000))
-        filters.append(f"[{index}:a]volume={volume},adelay={delay_ms}|{delay_ms}[a{index}]")
-        labels.append(f"[a{index}]")
+    voice_ctrl = None
+    if narration_wav is not None and narration_wav.exists():
+        inputs.extend(["-i", str(narration_wav)])
+        delay_ms = max(0, int(narration_delay * 1000))
+        filters.append(f"[{index}:a]volume=1.0,adelay={delay_ms}|{delay_ms},asplit=2[voice_mix][voice_ctrl]")
+        labels.append("[voice_mix]")
+        voice_ctrl = "[voice_ctrl]"
         index += 1
 
-    if narration_wav is not None and narration_wav.exists():
-        _add(narration_wav, narration_delay, 1.0)
     if with_sting and "sting" in sfx:
-        _add(sfx["sting"], 0.0, 0.9)
+        inputs.extend(["-i", str(sfx["sting"])])
+        filters.append(f"[{index}:a]volume=0.9[sting]")
+        labels.append("[sting]")
+        index += 1
+
     if "whoosh" in sfx:
         for t in cut_times:
-            _add(sfx["whoosh"], t, 0.6)
+            inputs.extend(["-i", str(sfx["whoosh"])])
+            delay_ms = max(0, int(t * 1000))
+            filters.append(f"[{index}:a]volume=0.6,adelay={delay_ms}|{delay_ms}[w{index}]")
+            labels.append(f"[w{index}]")
+            index += 1
+
     if MUSIC_BED.exists():
-        _add(MUSIC_BED, 0.0, 0.12)
+        inputs.extend(["-i", str(MUSIC_BED)])
+        if voice_ctrl:
+            filters.append(f"[{index}:a]volume=0.25[bgm_raw]")
+            filters.append(f"[bgm_raw]{voice_ctrl}sidechaincompress=threshold=0.05:ratio=4:attack=50:release=300[ducked]")
+            labels.append("[ducked]")
+        else:
+            filters.append(f"[{index}:a]volume=0.1[bgm]")
+            labels.append("[bgm]")
+        index += 1
 
     if not labels:
         print("warning: nada que mezclar (sin narración ni SFX)", file=sys.stderr)
