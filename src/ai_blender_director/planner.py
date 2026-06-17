@@ -274,6 +274,7 @@ def _fallback_plan(
             "character": character,
             "environment": environment,
             "animation": (animation if animation == "talk_v1" else "idle_v1") if character else None,
+            "transition": {"type": "none", "duration": 0.5}
         },
         {
             "_shot_role": "action",
@@ -291,6 +292,7 @@ def _fallback_plan(
             "character": character,
             "environment": environment,
             "animation": animation,
+            "transition": {"type": "fade", "duration": 0.5}
         },
         {
             "_shot_role": "close_up",
@@ -308,6 +310,7 @@ def _fallback_plan(
             "character": character,
             "environment": environment,
             "animation": (animation if animation == "talk_v1" else "idle_v1") if character else None,
+            "transition": {"type": "fade", "duration": 0.5}
         },
     ]
 
