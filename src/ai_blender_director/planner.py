@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from .models import ShotSpec
 
@@ -50,9 +53,10 @@ def plan_shots(
 ) -> list[dict[str, Any]]:
     """Convierte una idea en una lista de dicts ShotSpec listos para guardar."""
     resolution = resolution or DEFAULT_RESOLUTION
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    from .config import settings
+    api_key = settings.openrouter_api_key
     if not api_key:
-        print("warning: OPENROUTER_API_KEY no está configurada. Usando generador de respaldo.", file=sys.stderr)
+        logger.warning("OPENROUTER_API_KEY no está configurada. Usando generador de respaldo.")
         return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
 
     try:
@@ -77,7 +81,12 @@ def plan_shots(
             response_format={"type": "json_object"},
             temperature=0.8,
         )
-        data = json.loads(response.choices[0].message.content)
+        try:
+            data = json.loads(response.choices[0].message.content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parseando JSON del LLM: {e}. Usando generador de respaldo.")
+            return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+            
         raw_shots = data.get("shots", [])[:n_shots]
         shots = [
             _raw_item_to_shot(item, i, prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
@@ -88,7 +97,7 @@ def plan_shots(
         return shots
 
     except Exception as exc:
-        print(f"error llamando a OpenRouter: {exc}. Usando generador de respaldo.", file=sys.stderr)
+        logger.error(f"Error llamando a OpenRouter: {exc}. Usando generador de respaldo.")
         return _fallback_plan(prompt, n_shots, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
 
 
@@ -165,51 +174,43 @@ def _fallback_plan(
     resolution = resolution or DEFAULT_RESOLUTION
     normalized = " ".join(prompt.strip().lower().split())
 
-    if any(w in normalized for w in ["noticia", "noticiero", "news", "estudio de tv"]):
-        scene = "news studio"
-        style = "claymation broadcast"
-        environment = None
-        lighting_base = "bright studio broadcast light"
-    elif "cyberpunk" in normalized:
-        scene = "cyberpunk street"
-        style = "cinematic neon noir"
-        environment = "cyberpunk_street_v1"
-        lighting_base = "red and cyan neon with soft volumetric ambience"
-    elif "bosque" in normalized or "forest" in normalized:
-        scene = "procedural forest"
-        style = "cinematic concept preview"
-        environment = "forest_v1"
-        lighting_base = "soft natural backlight with god rays"
-    else:
-        scene = "minimal cinematic stage"
-        style = "cinematic concept preview"
-        environment = None
-        lighting_base = "soft cinematic studio light"
+    # 1. Escena, Estilo, Entorno e Iluminación
+    themes = [
+        (["noticia", "noticiero", "news", "estudio de tv"], ("news studio", "claymation broadcast", None, "bright studio broadcast light")),
+        (["cyberpunk"], ("cyberpunk street", "cinematic neon noir", "cyberpunk_street_v1", "red and cyan neon with soft volumetric ambience")),
+        (["bosque", "forest"], ("procedural forest", "cinematic concept preview", "forest_v1", "soft natural backlight with god rays")),
+    ]
+    scene, style, environment, lighting_base = "minimal cinematic stage", "cinematic concept preview", None, "soft cinematic studio light"
+    for keywords, theme_values in themes:
+        if any(w in normalized for w in keywords):
+            scene, style, environment, lighting_base = theme_values
+            break
 
     if any(w in normalized for w in ["plastilina", "claymation", "clay", "stop motion", "stop-motion"]):
         style = f"claymation stop motion, {style}"
 
-    weather: str | None = None
-    if "lluvia" in normalized or "rain" in normalized:
-        weather = "rain"
-    elif "niebla" in normalized or "fog" in normalized:
-        weather = "fog"
+    # 2. Clima
+    weather = "rain" if any(w in normalized for w in ["lluvia", "rain"]) else "fog" if any(w in normalized for w in ["niebla", "fog"]) else None
 
-    if any(w in normalized for w in ["cerdo", "comandante", "portavoz", "pig"]):
-        character: str | None = "comandante_cerdo_v1"
-    elif any(w in normalized for w in ["cotorra", "mascota", "loro", "parrot"]) or scene == "news studio":
-        character = "cotorra_v1"
-    elif any(w in normalized for w in ["personaje", "character", "hero", "heroe"]):
-        character = "protagonista_v2"
-    else:
-        character = None
+    # 3. Personaje
+    character_mappings = [
+        (["cerdo", "comandante", "portavoz", "pig"], "comandante_cerdo_v1"),
+        (["cotorra", "mascota", "loro", "parrot"], "cotorra_v1"),
+        (["personaje", "character", "hero", "heroe"], "protagonista_v2")
+    ]
+    character = "cotorra_v1" if scene == "news studio" else None
+    if not character:
+        for keywords, char_id in character_mappings:
+            if any(w in normalized for w in keywords):
+                character = char_id
+                break
 
+    # 4. Animación
+    animation = "idle_v1"
     if any(w in normalized for w in ["habla", "presenta", "anuncia", "noticia"]) or scene == "news studio":
         animation = "talk_v1"
     elif any(w in normalized for w in ["camina", "walk", "walking"]):
         animation = "walk_v1"
-    else:
-        animation = "idle_v1"
 
     templates = [
         {

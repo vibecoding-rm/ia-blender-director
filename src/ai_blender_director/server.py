@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from .index import find_job_record, latest_job_records, append_index_event
 from .generator import write_generated_shot
-from .jobs import create_render_job
+from .jobs import create_render_job, RenderJob
 from .commands.render import _build_blender_command
 from .commands.post_processing import run_comfy_render
 from .commands.video import assemble_video, concat_videos_async
@@ -31,6 +31,7 @@ SHOTS_DIR = ROOT / "generated" / "shots"
 _PLANS_STATE_FILE = RENDERS_DIR / "plans" / "state.json"
 
 plans_state: dict[str, dict] = {}
+plans_state_lock = asyncio.Lock()
 
 
 def _load_plans_state() -> None:
@@ -42,11 +43,14 @@ def _load_plans_state() -> None:
             pass
 
 
-def _save_plans_state() -> None:
-    _PLANS_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _PLANS_STATE_FILE.write_text(
-        json.dumps(plans_state, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+async def _save_plans_state() -> None:
+    async with plans_state_lock:
+        _PLANS_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(
+            _PLANS_STATE_FILE.write_text,
+            json.dumps(plans_state, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
 
 
 _load_plans_state()
@@ -127,6 +131,13 @@ class LogBroadcaster:
         if job_id in self.clients and ws in self.clients[job_id]:
             self.clients[job_id].remove(ws)
 
+    def schedule_cleanup(self, job_id: str, delay: int = 300) -> None:
+        async def _cleanup():
+            await asyncio.sleep(delay)
+            self.logs.pop(job_id, None)
+            self.clients.pop(job_id, None)
+            self._parents.pop(job_id, None)
+        asyncio.create_task(_cleanup())
 
 broadcaster = LogBroadcaster()
 
@@ -150,15 +161,17 @@ def _comfy_reachable() -> bool:
         return False
 
 
-async def run_pipeline_async(job, workflow: str, fps: int):
+async def run_pipeline_async(job: RenderJob, workflow: str, fps: int):
     try:
         await _run_pipeline_inner(job, workflow, fps)
     except Exception as exc:
         broadcaster.add_log(job.job_id, f"Pipeline error: {exc}\n")
         append_index_event(INDEX_PATH, job, "finished", status="failed")
+    finally:
+        broadcaster.schedule_cleanup(job.job_id)
 
 
-async def _run_pipeline_inner(job, workflow: str, fps: int):
+async def _run_pipeline_inner(job: RenderJob, workflow: str, fps: int):
     job_id = job.job_id
     broadcaster.add_log(job_id, f"=== [1/5] Starting Pipeline for {job_id} ===\n")
 
@@ -248,7 +261,7 @@ async def _run_pipeline_inner(job, workflow: str, fps: int):
         append_index_event(INDEX_PATH, job, "finished", status="failed")
 
 
-async def run_plan_pipeline_async(plan_id: str, jobs: list, workflow: str, fps: int) -> None:
+async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow: str, fps: int) -> None:
     try:
         broadcaster.add_log(plan_id, f"=== DIRECTOR PLAN — {len(jobs)} shot(s) ===\n")
 
@@ -295,7 +308,8 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list, workflow: str, fps: 
         broadcaster.add_log(plan_id, f"Plan pipeline error: {exc}\n")
         plans_state[plan_id]["status"] = "failed"
     finally:
-        _save_plans_state()
+        await _save_plans_state()
+        broadcaster.schedule_cleanup(plan_id)
 
 
 @app.post("/api/director/plan")
@@ -339,14 +353,17 @@ async def director_render(req: DirectorRenderRequest, background_tasks: Backgrou
         jobs.append(job)
 
     plan_id = f"plan_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
-    plans_state[plan_id] = {
-        "plan_id": plan_id,
-        "status": "running",
-        "job_ids": [j.job_id for j in jobs],
-        "video": None,
-    }
-    PLANS_DIR.mkdir(parents=True, exist_ok=True)
-    _save_plans_state()
+    
+    async with plans_state_lock:
+        plans_state[plan_id] = {
+            "plan_id": plan_id,
+            "status": "running",
+            "job_ids": [j.job_id for j in jobs],
+            "video": None,
+        }
+        PLANS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    await _save_plans_state()
 
     background_tasks.add_task(run_plan_pipeline_async, plan_id, jobs, req.workflow, req.fps)
     return {"plan_id": plan_id, "job_ids": [j.job_id for j in jobs], "n_shots": len(jobs)}
@@ -362,7 +379,9 @@ async def get_plan_status(plan_id: str):
 
 @app.post("/api/pipeline")
 async def start_pipeline(req: PipelineRequest, background_tasks: BackgroundTasks):
-    shot_path = write_generated_shot(req.prompt, SHOTS_DIR, duration_seconds=req.duration, fps=req.fps)
+    shot_path = await asyncio.to_thread(
+        write_generated_shot, req.prompt, SHOTS_DIR, duration_seconds=req.duration, fps=req.fps
+    )
     job = create_render_job(shot_path, RENDERS_DIR / "previews", profile="preview")
     append_index_event(INDEX_PATH, job, "created", status="created")
     background_tasks.add_task(run_pipeline_async, job, req.workflow, req.fps)
