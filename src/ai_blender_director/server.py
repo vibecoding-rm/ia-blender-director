@@ -6,6 +6,8 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
+import logging
+
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +22,9 @@ from .commands.post_processing import run_comfy_render
 from .commands.video import assemble_video, concat_videos_async
 from .critic import VisionCritic
 from .config import settings
+from .db import SessionLocal, PlanRecord
+
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[2]
 RENDERS_DIR = ROOT / "renders"
@@ -28,29 +33,54 @@ WEB_DIR = ROOT / "web"
 INDEX_PATH = RENDERS_DIR / "index.jsonl"
 SHOTS_DIR = ROOT / "generated" / "shots"
 
-_PLANS_STATE_FILE = RENDERS_DIR / "plans" / "state.json"
-
+# In-memory cache — populated from SQLite on startup and kept in sync on writes.
+# Reading is lock-free (GIL safe for dict lookups). All mutations go through
+# _upsert_plan() which writes to both the cache and the DB atomically.
 plans_state: dict[str, dict] = {}
 plans_state_lock = asyncio.Lock()
 
 
 def _load_plans_state() -> None:
-    if _PLANS_STATE_FILE.exists():
-        try:
-            data = json.loads(_PLANS_STATE_FILE.read_text(encoding="utf-8"))
-            plans_state.update(data)
-        except Exception:
-            pass
+    """Warm the in-memory cache from SQLite on startup."""
+    try:
+        with SessionLocal() as db:
+            records = db.query(PlanRecord).all()
+            for r in records:
+                plans_state[r.plan_id] = {
+                    "plan_id": r.plan_id,
+                    "status": r.status,
+                    "job_ids": json.loads(r.job_ids),
+                    "video": r.video,
+                }
+    except Exception as exc:
+        logger.warning("Could not load plans from DB: %s", exc)
 
 
-async def _save_plans_state() -> None:
+async def _upsert_plan(plan_id: str, data: dict) -> None:
+    """Write plan state to both the in-memory cache and SQLite."""
     async with plans_state_lock:
-        _PLANS_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread(
-            _PLANS_STATE_FILE.write_text,
-            json.dumps(plans_state, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
+        plans_state[plan_id] = data
+        await asyncio.to_thread(_db_upsert_plan, plan_id, data)
+
+
+def _db_upsert_plan(plan_id: str, data: dict) -> None:
+    try:
+        with SessionLocal() as db:
+            record = db.query(PlanRecord).filter(PlanRecord.plan_id == plan_id).first()
+            if record:
+                record.status = data.get("status", record.status)
+                record.job_ids = json.dumps(data.get("job_ids", []))
+                record.video = data.get("video")
+            else:
+                db.add(PlanRecord(
+                    plan_id=plan_id,
+                    status=data.get("status", "running"),
+                    job_ids=json.dumps(data.get("job_ids", [])),
+                    video=data.get("video"),
+                ))
+            db.commit()
+    except Exception as exc:
+        logger.error("Failed to persist plan %s to DB: %s", plan_id, exc)
 
 
 _load_plans_state()
@@ -322,23 +352,27 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow:
             )
 
             if result_path and result_path.exists():
-                plans_state[plan_id].update({
-                    "status": "completed",
-                    "video": f"renders/plans/{plan_id}/final.mp4",
-                })
+                current = dict(plans_state.get(plan_id, {}))
+                current.update({"status": "completed", "video": f"renders/plans/{plan_id}/final.mp4"})
+                await _upsert_plan(plan_id, current)
                 broadcaster.add_log(plan_id, f"Final video: {final_video.name}\n")
             else:
-                plans_state[plan_id]["status"] = "failed"
+                current = dict(plans_state.get(plan_id, {}))
+                current["status"] = "failed"
+                await _upsert_plan(plan_id, current)
         else:
-            plans_state[plan_id]["status"] = "completed"
+            current = dict(plans_state.get(plan_id, {}))
+            current["status"] = "completed"
+            await _upsert_plan(plan_id, current)
 
         broadcaster.add_log(plan_id, "=== PLAN COMPLETE ===\n")
 
     except Exception as exc:
         broadcaster.add_log(plan_id, f"Plan pipeline error: {exc}\n")
-        plans_state[plan_id]["status"] = "failed"
+        current = dict(plans_state.get(plan_id, {}))
+        current["status"] = "failed"
+        await _upsert_plan(plan_id, current)
     finally:
-        await _save_plans_state()
         broadcaster.schedule_cleanup(plan_id)
 
 
@@ -385,16 +419,12 @@ async def director_render(req: DirectorRenderRequest, background_tasks: Backgrou
         append_index_event(INDEX_PATH, job, "created", status="created")
         jobs.append(job)
 
-    async with plans_state_lock:
-        plans_state[plan_id] = {
-            "plan_id": plan_id,
-            "status": "running",
-            "job_ids": [j.job_id for j in jobs],
-            "video": None,
-        }
-        PLANS_DIR.mkdir(parents=True, exist_ok=True)
-    
-    await _save_plans_state()
+    await _upsert_plan(plan_id, {
+        "plan_id": plan_id,
+        "status": "running",
+        "job_ids": [j.job_id for j in jobs],
+        "video": None,
+    })
 
     background_tasks.add_task(run_plan_pipeline_async, plan_id, jobs, req.workflow, req.fps, req.hook_title, req.narration_text)
     return {"plan_id": plan_id, "job_ids": [j.job_id for j in jobs], "n_shots": len(jobs)}

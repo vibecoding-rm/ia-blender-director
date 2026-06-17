@@ -1,5 +1,5 @@
 from pathlib import Path
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, func
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Text, func
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -10,6 +10,7 @@ DB_PATH = DB_DIR / "jobs.db"
 engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 class JobRecord(Base):
     __tablename__ = "jobs"
@@ -24,7 +25,21 @@ class JobRecord(Base):
     returncode = Column(Integer, nullable=True)
     timestamp = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+
+class PlanRecord(Base):
+    """Persistent storage for Director plans — survives server restarts."""
+    __tablename__ = "plans"
+
+    plan_id = Column(String, primary_key=True, index=True, nullable=False)
+    status = Column(String, nullable=False, default="running")
+    job_ids = Column(Text, nullable=False, default="[]")  # JSON-encoded list
+    video = Column(String, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     db = SessionLocal()
