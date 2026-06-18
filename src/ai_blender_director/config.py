@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     server_host: str = "127.0.0.1"
     openrouter_api_key: str | None = None
     openrouter_model: str = "google/gemini-2.5-flash"
+    vast_api_key: str | None = None  # Vast.ai (alquiler de GPU); vive solo en .env
     # Director Agent endurecido con Instructor. Opt-in: muchos modelos (p.ej.
     # gemini-2.5-flash) no emiten bien el schema anidado de tool-calling y
     # devuelven shots como strings; el JSON-mode clásico es más robusto y es el

@@ -20,6 +20,11 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     pipeline_parser.add_argument("--output-root", type=Path, default=Path("renders/previews"))
     pipeline_parser.add_argument("--duration", type=int, default=4)
     pipeline_parser.add_argument("--fps", type=int, default=24)
+    pipeline_parser.add_argument(
+        "--profile", choices=["preview", "final"], default="preview",
+        help="Calidad de render. 'final' = máxima calidad (resolución completa, "
+             "128 samples, raytracing) — para correr en GPU.",
+    )
     pipeline_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
     pipeline_parser.add_argument("--workflow", default="stylization_v1")
     pipeline_parser.add_argument("--comfy-url", default="http://127.0.0.1:8188")
@@ -66,7 +71,7 @@ def _handle_single_shot(args: argparse.Namespace) -> int:
     print(f"Scene: {spec.scene}")
 
     print("\n=== [2/4] RENDERING IN BLENDER ===")
-    render_code, job = render_shot_to_job(shot_path, args.output_root, "preview", args.index, False)
+    render_code, job = render_shot_to_job(shot_path, args.output_root, args.profile, args.index, False)
     if render_code != 0:
         print("Render failed. Stopping pipeline.")
         return render_code
@@ -102,7 +107,7 @@ def _handle_single_shot(args: argparse.Namespace) -> int:
             print("Critical warnings detected. Attempting auto-correction (1 retry).")
             corrected = _auto_correct_and_rerender(
                 job.job_dir / "shot.json", feedbacks,
-                args.output_root, args.index,
+                args.output_root, args.index, args.profile,
             )
             if corrected is None:
                 print("Auto-correction failed or not applicable. Stopping.")
@@ -120,6 +125,7 @@ def _auto_correct_and_rerender(
     feedbacks: list,
     output_root: Path,
     index_path: Path,
+    profile: str = "preview",
 ):
     """Apply critic corrections and re-render once. Returns the new RenderJob or None on failure."""
     from ..corrector import apply_corrections
@@ -127,7 +133,7 @@ def _auto_correct_and_rerender(
     corrected_path = apply_corrections(shot_path, feedbacks)
     print(f"  corrected spec: {corrected_path.name}")
 
-    code, job = render_shot_to_job(corrected_path, output_root, "preview", index_path, dry_run=False)
+    code, job = render_shot_to_job(corrected_path, output_root, profile, index_path, dry_run=False)
     if code != 0:
         return None
     print(f"  re-render completed: {job.job_id}")
@@ -164,7 +170,7 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         print(f"\n=== SHOT {i}/{len(paths)}: {path.name} ===")
 
         print("\n--- [RENDER] ---")
-        code, job = render_shot_to_job(path, args.output_root, "preview", args.index, False)
+        code, job = render_shot_to_job(path, args.output_root, args.profile, args.index, False)
         if code != 0 or job is None:
             print(f"  Render fallido para {path.name} — omitiendo")
             continue
@@ -189,7 +195,7 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
                         print("  WARNING detectado — aplicando auto-corrección")
                         corrected_job = _auto_correct_and_rerender(
                             job.job_dir / "shot.json", feedbacks,
-                            args.output_root, args.index,
+                            args.output_root, args.index, args.profile,
                         )
                         if corrected_job:
                             job = corrected_job

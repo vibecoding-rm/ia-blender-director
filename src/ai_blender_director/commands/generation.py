@@ -5,7 +5,8 @@ from ..generator import write_generated_shot
 from ..io import load_shot_spec
 from ..planner import write_shot_plan
 
-VERTICAL_RESOLUTION = {"width": 720, "height": 1280}
+# 1080x1920: resolución profesional 9:16 para Shorts/Reels/TikTok.
+VERTICAL_RESOLUTION = {"width": 1080, "height": 1920}
 
 
 def resolution_for(args: argparse.Namespace) -> dict[str, int] | None:
