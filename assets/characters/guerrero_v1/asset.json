@@ -1,0 +1,14 @@
+{
+  "id": "guerrero_v1",
+  "type": "character",
+  "name": "El Guerrero de Lata",
+  "source": "original_glb",
+  "path": "guerrero_v1.glb",
+  "metadata": {
+    "description": "Armadura hueca (caballero de lata) con voz distorsionada, espada-antena WiFi y escudo de 'fuente anónima'; nadie ve quién está dentro (solo cables y un teléfono). Caricatura satírica de los canales anónimos de amenaza/linchamiento digital. Rig de 10 huesos con visera inferior (Jaw) para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_guerrero.py"
+  }
+}

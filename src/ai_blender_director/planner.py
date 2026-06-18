@@ -29,7 +29,7 @@ _SCENE_SCHEMA = {
             "subject": "main subject of the shot",
             "action": "what the subject is doing",
             "weather": "rain, fog, snow, or null",
-            "character_asset": "cotorra_v1 (presentadora), comandante_cerdo_v1 (vocero), humbrete_v1 (fiscal sabueso), michelito_v1 (gallito Con Filo), randy_v1 (tortuga Mesa Redonda), ciberclarias_v1 (troll/enjambre), protagonista_v2 (humano genérico), or null",
+            "character_asset": "cotorra_v1 (presentadora), comandante_cerdo_v1 (vocero), humbrete_v1 (fiscal sabueso), michelito_v1 (gallito Con Filo), randy_v1 (tortuga Mesa Redonda), guerrero_v1 (armadura anónima), ciberclarias_v1 (troll/enjambre), protagonista_v2 (humano genérico), or null",
             "environment_asset": "cyberpunk_street_v1, forest_v1, or null",
             "animation_asset": "walk_v1, run_v1, idle_v1, or null",
             "transition": {
@@ -344,6 +344,7 @@ def _fallback_plan(
         (["humbrete", "humbertico", "humberto", "sabueso", "fiscal", "bulldog"], "humbrete_v1"),
         (["michelito", "michel", "con filo", "gallito", "gallo", "navaja"], "michelito_v1"),
         (["randy", "mesa redonda", "tortuga", "redondo", "decano"], "randy_v1"),
+        (["guerrero", "lata", "anonimo", "anónimo", "casco", "armadura", "caballero"], "guerrero_v1"),
         (["ciberclaria", "ciberclarias", "troll", "enjambre", "claria", "bagre"], "ciberclarias_v1"),
         (["cerdo", "comandante", "portavoz", "pig"], "comandante_cerdo_v1"),
         (["cotorra", "mascota", "loro", "parrot"], "cotorra_v1"),
