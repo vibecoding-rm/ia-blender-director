@@ -1,0 +1,15 @@
+{
+  "id": "ciberclarias_v1",
+  "type": "character",
+  "name": "Ciberclaria (unidad del enjambre)",
+  "source": "original_glb",
+  "path": "ciberclarias_v1.glb",
+  "metadata": {
+    "description": "Bagre de fango con teléfono, ojos rojos y camiseta de uniforme: la unidad del enjambre de trolls oficialistas. En escena se instancia/duplica para formar el banco. Rig de 9 huesos con boca articulada (Jaw) para corear consignas vía lip-sync. Caricatura satírica del fenómeno documentado de las 'ciberclarias'.",
+    "default_scale": 1.0,
+    "swarm": true,
+    "bones": ["Root", "Body", "Head", "Jaw", "Fin.L", "Fin.R", "Tail", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_ciberclarias.py"
+  }
+}
