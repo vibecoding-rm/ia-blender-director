@@ -56,6 +56,10 @@ def produce_short(
     voice: Path | None = None,
     subtitles: bool = True,
     sfx: bool = True,
+    narration_wav: Path | None = None,
+    lower_third: tuple[str, str] | None = None,
+    ticker_text: str | None = None,
+    corner_bug: str | None = None,
 ) -> Path | None:
     """Ensambla el Short final. Devuelve la ruta del video terminado o None."""
     output_video.parent.mkdir(parents=True, exist_ok=True)
@@ -167,9 +171,13 @@ def produce_short(
     video_duration = accumulated_duration
 
     # ── 3. Narración ─────────────────────────────────────────────────────────
-    narration_wav = None
+    # Si se pasa un WAV ya sintetizado (p.ej. el usado para el lip-sync), se
+    # reutiliza para no sintetizar dos veces; los subtítulos siguen usando
+    # narration_text.
     narration_duration = 0.0
-    if narration_text:
+    if narration_wav is not None and narration_wav.exists():
+        narration_duration = media_duration(narration_wav) or 0.0
+    elif narration_text:
         narration_wav = work / f"{stem}_narracion.wav"
         if synthesize(narration_text, narration_wav, voice=voice):
             narration_duration = media_duration(narration_wav) or 0.0
@@ -195,6 +203,15 @@ def produce_short(
         write_ass(timings, ass_path, play_res=resolution)
         escaped_ass = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
         current_v = current_v.filter('ass', filename=escaped_ass)
+
+    # ── 4b. Gráficos de broadcast (lower-third, ticker, bug) ──────────────────
+    if lower_third or ticker_text or corner_bug:
+        from .broadcast import apply_overlays
+        current_v = apply_overlays(
+            current_v, work, stem,
+            resolution=resolution, fps=fps, video_duration=video_duration,
+            lower_third=lower_third, ticker_text=ticker_text, corner_bug=corner_bug,
+        )
 
     # Compile and run the video assembly graph
     base = work / f"{stem}_base.mp4"

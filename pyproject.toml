@@ -19,6 +19,15 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
 ]
 
+[project.optional-dependencies]
+# Director Agent endurecido: structured outputs con reintentos sobre Pydantic.
+director = ["instructor>=1.0.0"]
+# Lip-sync: el binario `rhubarb` se instala aparte (no es paquete pip).
+# Voz avanzada (clonación/emoción): se instala el motor elegido aparte:
+#   xtts  -> pip install TTS         (Coqui, XTTS v2)
+#   fish  -> ver fish-speech upstream
+# y se selecciona con settings.tts_engine.
+
 [project.scripts]
 ai-blender-director = "ai_blender_director.cli:main"
 

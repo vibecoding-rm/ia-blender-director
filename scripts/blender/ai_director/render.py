@@ -12,6 +12,7 @@ from .camera import create_camera
 from .animation import animate_subject, animate_camera
 from .materials import is_claymation, apply_claymation_style
 from .passes import render_control_passes
+from .lipsync import apply_jaw_track, load_jaw_track_from_json
 
 def main() -> int:
     shot_path, output_dir, profile, preview_only = parse_args(sys.argv)
@@ -29,6 +30,17 @@ def main() -> int:
     camera = create_camera(spec, subject)
     animate_subject(subject, spec, asset_refs)
     animate_camera(camera, spec)
+
+    # Lip-sync por audio: si el spec trae un JSON de visemas (Rhubarb), conduce
+    # el pico desde la narración en vez de la animación Talk genérica.
+    visemes_path = spec.get("visemes_path")
+    if visemes_path:
+        frame_end = int(spec["duration_seconds"] * spec["fps"])
+        jaw_track = load_jaw_track_from_json(
+            visemes_path, int(spec["fps"]), start_offset=float(spec.get("narration_offset", 0.0))
+        )
+        if apply_jaw_track(subject, jaw_track, frame_end=frame_end):
+            print(f"  lip-sync aplicado desde {visemes_path}")
 
     weather = spec.get("weather")
     if weather == "rain":

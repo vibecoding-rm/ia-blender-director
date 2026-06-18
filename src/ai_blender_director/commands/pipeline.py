@@ -24,8 +24,9 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     pipeline_parser.add_argument("--workflow", default="stylization_v1")
     pipeline_parser.add_argument("--comfy-url", default="http://127.0.0.1:8188")
     pipeline_parser.add_argument(
-        "--shots", type=int, default=1,
-        help="Number of shots; >1 uses the Director Agent to generate a multi-shot plan.",
+        "--shots", type=int, default=4,
+        help="Number of shots (default 4 = secuencia multi-shot dirigida). "
+             "Usa --shots 1 solo para un preview rápido de un encuadre.",
     )
     pipeline_parser.add_argument("--output-video", type=Path, default=None)
     pipeline_parser.add_argument(
@@ -152,6 +153,11 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         spec = load_shot_spec(p)
         print(f"  {p.name}  [{spec.camera.movement}]  {spec.scene}")
 
+    # Lip-sync de punta a punta: sintetiza la narración ANTES de renderizar,
+    # genera la timeline de visemas (Rhubarb) y la inyecta en cada plano para
+    # que Blender mueva el pico de La Cotorra al hablar.
+    narration_wav = _prepare_lipsync(args, paths, slug_for_prompt(args.prompt)[:40])
+
     job_dirs: list[Path] = []
 
     for i, path in enumerate(paths, 1):
@@ -239,6 +245,15 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
     print("\n=== [5/5] POSTPRODUCCIÓN (gancho + audio + subtítulos) ===")
     from ..postproduction import produce_short
 
+    # Gráficos de broadcast: se activan solos cuando la escena es un noticiero.
+    lower_third = ticker_text = corner_bug = None
+    scene_text = (first_spec.scene + " " + first_spec.subject).lower()
+    is_news = any(w in scene_text for w in ("news", "studio", "noticier", "cotorra", "anchor", "plaza"))
+    if is_news:
+        lower_third = ("La Cotorra", "Corresponsal Oficial")
+        ticker_text = args.narration or args.hook or "Noticias 100% oficiales del régimen"
+        corner_bug = "Última Hora" if args.hook else "En Vivo"
+
     final = produce_short(
         shot_videos,
         shot_durations,
@@ -250,9 +265,63 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         voice=args.voice,
         subtitles=not args.no_subtitles,
         sfx=not args.no_sfx,
+        narration_wav=narration_wav,
+        lower_third=lower_third,
+        ticker_text=ticker_text,
+        corner_bug=corner_bug,
     )
     if final is None:
         print("error: falló la postproducción", file=sys.stderr)
         return 1
     print(f"video final: {final}")
     return 0
+
+
+def _prepare_lipsync(args: argparse.Namespace, paths: list[Path], slug: str) -> Path | None:
+    """Sintetiza la narración e inyecta visemas en cada plano. Devuelve el WAV.
+
+    Devuelve None (sin lip-sync, sin reutilizar WAV) si no hay narración o si
+    falla la síntesis. Si Rhubarb no está instalado, igualmente devuelve el WAV
+    (para reutilizarlo en postproducción) pero no inyecta visemas.
+    """
+    if not args.narration:
+        return None
+
+    from ..tts import synthesize
+    from ..lipsync import generate_visemes
+
+    work_root = args.output_root
+    work_root.mkdir(parents=True, exist_ok=True)
+    narration_wav = (work_root / f"_narration_{slug}.wav").resolve()
+
+    print("\n=== [PRE] NARRACIÓN + LIP-SYNC ===")
+    if not synthesize(args.narration, narration_wav, voice=args.voice):
+        print("  warning: falló la síntesis de voz; sin lip-sync", file=sys.stderr)
+        return None
+    print(f"  narración: {narration_wav.name}")
+
+    viseme_json = (work_root / f"_visemes_{slug}.json").resolve()
+    if generate_visemes(narration_wav, viseme_json) is None:
+        print("  rhubarb no disponible: se usa la animación Talk embebida")
+        return narration_wav
+
+    injected = 0
+    for i, path in enumerate(paths):
+        if _inject_lipsync(path, viseme_json, offset=i * float(args.duration)):
+            injected += 1
+    print(f"  visemas inyectados en {injected}/{len(paths)} plano(s)")
+    return narration_wav
+
+
+def _inject_lipsync(shot_path: Path, viseme_json: Path, *, offset: float) -> bool:
+    """Añade visemes_path + narration_offset al shot.json si tiene personaje."""
+    data = json.loads(shot_path.read_text(encoding="utf-8"))
+    has_character = data.get("character") or (data.get("assets") or {}).get("character")
+    if not has_character:
+        return False
+    data["visemes_path"] = str(viseme_json)
+    data["narration_offset"] = offset
+    shot_path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    return True

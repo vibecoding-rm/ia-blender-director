@@ -66,6 +66,16 @@ def plan_scene(
             "shots": shots
         }
 
+    # Ruta opt-in: Instructor (Pydantic + reintentos). Solo con modelos fuertes
+    # en structured outputs; si no, el JSON-mode clásico de abajo es más robusto.
+    if settings.director_use_instructor:
+        instructor_result = _plan_via_instructor(
+            prompt, n_shots, api_key,
+            duration_seconds=duration_seconds, fps=fps, resolution=resolution,
+        )
+        if instructor_result is not None:
+            return instructor_result
+
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL)
@@ -161,6 +171,99 @@ def write_shot_plan(
             f.write("\n")
         paths.append(path)
     return paths
+
+
+# ---------------------------------------------------------------------------
+# Director Agent vía Instructor (structured outputs con reintentos)
+# ---------------------------------------------------------------------------
+
+def _plan_via_instructor(
+    prompt: str,
+    n_shots: int,
+    api_key: str,
+    *,
+    duration_seconds: int,
+    fps: int,
+    resolution: dict[str, int] | None,
+) -> dict[str, Any] | None:
+    """Genera el SceneSpec con Instructor. Devuelve None si no está disponible."""
+    try:
+        import instructor
+        from openai import OpenAI
+        from pydantic import BaseModel, Field
+        from typing import Literal
+    except ImportError:
+        return None
+
+    class LLMTransition(BaseModel):
+        type: Literal[
+            "none", "fade", "wipeleft", "wiperight", "slideleft", "slideright", "dissolve"
+        ] = "none"
+        duration: float = 0.5
+
+    class LLMShot(BaseModel):
+        shot_role: Literal["establishing", "action", "close_up", "medium"] = "action"
+        scene: str
+        style: str
+        camera_movement: Literal["static", "orbit", "dolly", "push_in"] = "orbit"
+        camera_lens_mm: int = Field(35, ge=12, le=200)
+        lighting: str
+        subject: str
+        action: str
+        weather: Literal["rain", "fog", "snow"] | None = None
+        character_asset: str | None = None
+        environment_asset: str | None = None
+        animation_asset: str | None = None
+        transition: LLMTransition = Field(default_factory=LLMTransition)
+
+    class LLMScene(BaseModel):
+        title: str
+        hook_title: str | None = None
+        narration_text: str | None = None
+        shots: list[LLMShot]
+
+    try:
+        client = instructor.from_openai(OpenAI(api_key=api_key, base_url=_OPENROUTER_BASE_URL))
+        scene: LLMScene = client.chat.completions.create(
+            model=settings.openrouter_model,
+            response_model=LLMScene,
+            max_retries=1,
+            temperature=0.8,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres un AI Director cinematográfico para un noticiero satírico en "
+                        "claymation. Genera un plan coherente que cuente una historia."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f'Idea del usuario: "{prompt}"\n'
+                        f"Genera exactamente {n_shots} planos con roles variados "
+                        f"(establishing, action, close_up)."
+                    ),
+                },
+            ],
+        )
+    except Exception as exc:  # noqa: BLE001 — cualquier fallo cae a JSON-mode
+        logger.warning("Instructor falló (%s); usando JSON-mode clásico.", exc)
+        return None
+
+    raw_shots = [s.model_dump() for s in scene.shots[:n_shots]]
+    shots = [
+        _raw_item_to_shot(item, i, prompt, duration_seconds=duration_seconds, fps=fps, resolution=resolution)
+        for i, item in enumerate(raw_shots)
+    ]
+    for shot in shots:
+        ShotSpec.from_dict(shot)  # valida; lanza si el LLM produjo algo inválido
+    return {
+        "title": scene.title,
+        "hook_title": scene.hook_title,
+        "narration_text": scene.narration_text,
+        "shots": shots,
+    }
 
 
 # ---------------------------------------------------------------------------
