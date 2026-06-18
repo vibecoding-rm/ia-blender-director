@@ -29,7 +29,7 @@ _SCENE_SCHEMA = {
             "subject": "main subject of the shot",
             "action": "what the subject is doing",
             "weather": "rain, fog, snow, or null",
-            "character_asset": "protagonista_v2 for humans, null otherwise",
+            "character_asset": "cotorra_v1 (presentadora), comandante_cerdo_v1 (vocero), humbrete_v1 (fiscal sabueso), protagonista_v2 (humano genérico), or null",
             "environment_asset": "cyberpunk_street_v1, forest_v1, or null",
             "animation_asset": "walk_v1, run_v1, idle_v1, or null",
             "transition": {
@@ -341,6 +341,7 @@ def _fallback_plan(
 
     # 3. Personaje
     character_mappings = [
+        (["humbrete", "humbertico", "humberto", "sabueso", "fiscal", "bulldog"], "humbrete_v1"),
         (["cerdo", "comandante", "portavoz", "pig"], "comandante_cerdo_v1"),
         (["cotorra", "mascota", "loro", "parrot"], "cotorra_v1"),
         (["personaje", "character", "hero", "heroe"], "protagonista_v2")

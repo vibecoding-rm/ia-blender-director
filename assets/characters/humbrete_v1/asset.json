@@ -1,0 +1,14 @@
+{
+  "id": "humbrete_v1",
+  "type": "character",
+  "name": "Humbrete, el Sabueso de Expediente",
+  "source": "original_glb",
+  "path": "humbrete_v1.glb",
+  "metadata": {
+    "description": "Fiscal televisivo del régimen (bulldog en traje) estilo claymation. Caricatura satírica basada en el rol público de un conductor de la TV oficialista. Rig de 11 huesos con mandíbula articulada (Jaw) para lip-sync; lleva carpeta secreta.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Leg.L", "Leg.R", "Tail", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_humbrete.py"
+  }
+}
