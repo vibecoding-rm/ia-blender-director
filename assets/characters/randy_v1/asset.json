@@ -1,0 +1,14 @@
+{
+  "id": "randy_v1",
+  "type": "character",
+  "name": "Randy Redondo, la Tortuga de Mesa",
+  "source": "original_glb",
+  "path": "randy_v1.glb",
+  "metadata": {
+    "description": "Tortuga vieja con gafas y traje, atrapada tras una mesa redonda que gira sin llegar a ningún lugar: el decano de la propaganda. Caricatura satírica basada en el rol público del director de un espacio insignia de la TV oficialista. Rig de 11 huesos con mandíbula (Jaw) para lip-sync; animaciones lentas y solemnes.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Leg.L", "Leg.R", "Tail", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_randy.py"
+  }
+}
