@@ -79,9 +79,45 @@ def configure_render(spec: dict, output_dir: Path, profile: str) -> None:
     scene.render.image_settings.file_format = "FFMPEG"
     scene.render.ffmpeg.format = "MPEG4"
     scene.render.ffmpeg.codec = "H264"
+    scene.render.ffmpeg.ffmpeg_preset = "GOOD" if profile == "preview" else "BEST"
+    scene.render.ffmpeg.constant_rate_factor = "HIGH" if profile == "preview" else "PERC_LOSSLESS"
     scene.eevee.taa_render_samples = 16 if profile == "preview" else 64
+    if profile == "final":
+        scene.eevee.taa_render_samples = 128
+    configure_view_transform(scene)
+    configure_eevee(scene, profile)
     scene.world = bpy.data.worlds.new("director_world") if scene.world is None else scene.world
-    scene.world.color = (0.015, 0.015, 0.025)
+    scene.world.color = (0.045, 0.05, 0.07)
+
+def configure_view_transform(scene: bpy.types.Scene) -> None:
+    if "AgX" in {item.name for item in scene.view_settings.bl_rna.properties["view_transform"].enum_items}:
+        scene.view_settings.view_transform = "AgX"
+    available_looks = {item.name for item in scene.view_settings.bl_rna.properties["look"].enum_items}
+    if "AgX - Medium High Contrast" in available_looks:
+        scene.view_settings.look = "AgX - Medium High Contrast"
+    elif "Medium High Contrast" in available_looks:
+        scene.view_settings.look = "Medium High Contrast"
+    scene.view_settings.exposure = 0
+    scene.view_settings.gamma = 1
+
+def configure_eevee(scene: bpy.types.Scene, profile: str) -> None:
+    eevee = scene.eevee
+    _set_if_present(eevee, "use_gtao", True)
+    _set_if_present(eevee, "gtao_distance", 4)
+    _set_if_present(eevee, "gtao_factor", 1.25)
+    _set_if_present(eevee, "use_bloom", True)
+    _set_if_present(eevee, "bloom_threshold", 0.8)
+    _set_if_present(eevee, "bloom_intensity", 0.07 if profile == "preview" else 0.11)
+    _set_if_present(eevee, "use_raytracing", True)
+    _set_if_present(eevee, "use_motion_blur", True)
+    _set_if_present(eevee, "motion_blur_shutter", 0.35)
+
+def _set_if_present(obj: object, attr: str, value: object) -> None:
+    if hasattr(obj, attr):
+        try:
+            setattr(obj, attr, value)
+        except TypeError:
+            pass
 
 def render_preview_frame(spec: dict, output_dir: Path) -> Path:
     scene = bpy.context.scene

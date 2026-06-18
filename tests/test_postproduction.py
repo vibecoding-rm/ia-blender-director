@@ -93,6 +93,9 @@ class PostProductionTest(unittest.TestCase):
             self.assertIn("zoompan", arg_str)
             self.assertIn("xfade", arg_str)
             self.assertIn("ass", arg_str)
+            self.assertIn("-crf 18", arg_str)
+            self.assertIn("-preset slow", arg_str)
+            self.assertIn("-movflags +faststart", arg_str)
 
 
 if __name__ == "__main__":

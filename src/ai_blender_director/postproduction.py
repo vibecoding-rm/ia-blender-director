@@ -13,6 +13,7 @@ from pathlib import Path
 import ffmpeg
 
 from .branding import make_hook_clip
+from .commands.video import H264_OUTPUT_OPTIONS
 from .sfx import mix_audio_track
 from .subtitles import caption_timings, chunk_narration, write_ass
 from .tts import media_duration, synthesize
@@ -197,7 +198,7 @@ def produce_short(
 
     # Compile and run the video assembly graph
     base = work / f"{stem}_base.mp4"
-    stream = ffmpeg.output(current_v, str(base), vcodec='libx264', pix_fmt='yuv420p', an=None).overwrite_output()
+    stream = ffmpeg.output(current_v, str(base), an=None, **H264_OUTPUT_OPTIONS).overwrite_output()
     try:
         ffmpeg.run(stream, capture_stdout=True, capture_stderr=True)
     except ffmpeg.Error as e:

@@ -6,6 +6,15 @@ import tempfile
 from pathlib import Path
 import ffmpeg
 
+H264_OUTPUT_OPTIONS = {
+    "vcodec": "libx264",
+    "pix_fmt": "yuv420p",
+    "crf": 18,
+    "preset": "slow",
+    "profile:v": "high",
+    "movflags": "+faststart",
+}
+
 
 async def assemble_video(input_dir: Path, output_file: Path, fps: int = 24, broadcaster=None, job_id: str = "") -> bool:
     """Assembles an image sequence into an MP4 video using ffmpeg."""
@@ -19,7 +28,7 @@ async def assemble_video(input_dir: Path, output_file: Path, fps: int = 24, broa
 
     # Compile using ffmpeg-python
     stream = ffmpeg.input(str(input_dir / "*.png"), pattern_type='glob', framerate=fps)
-    stream = ffmpeg.output(stream, str(output_file), vcodec='libx264', pix_fmt='yuv420p').overwrite_output()
+    stream = ffmpeg.output(stream, str(output_file), **H264_OUTPUT_OPTIONS).overwrite_output()
     command = ffmpeg.compile(stream)
 
     msg = f"Running: {' '.join(command)}\n"
@@ -109,7 +118,7 @@ def assemble_frames_sync(
         return False
 
     stream = ffmpeg.input(str(frames_dir / pattern), pattern_type='glob', framerate=fps)
-    stream = ffmpeg.output(stream, str(output_file), vcodec='libx264', pix_fmt='yuv420p').overwrite_output()
+    stream = ffmpeg.output(stream, str(output_file), **H264_OUTPUT_OPTIONS).overwrite_output()
     args = ffmpeg.compile(stream)
 
     result = subprocess.run(args, capture_output=True)  # noqa: S603 — list args, no shell injection

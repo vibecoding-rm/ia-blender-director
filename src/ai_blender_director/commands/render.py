@@ -158,7 +158,7 @@ def _resolve_blender_executable() -> str | None:
 def _read_json_if_exists(path: Path) -> dict | None:
     if not path.exists():
         return None
-    with path.open("r", encoding="utf-8") as file:
+    with path.open("r", encoding="utf-8-sig") as file:
         return json.load(file)
 
 

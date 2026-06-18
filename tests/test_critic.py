@@ -1,5 +1,6 @@
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -149,7 +150,8 @@ class TestVisionCritic(TestCase):
         # Image that triggers distance, framing, lighting, contrast, edge_coverage
         self.create_test_images((0, 0, 10, 10), (20, 20, 20))
         critic = VisionCritic(self.beauty_path, self.mask_path)
-        feedbacks = critic.analyze()
+        with patch("ai_blender_director.config.settings.openrouter_api_key", None):
+            feedbacks = critic.analyze()
         # At least 3 issues (distance too-far/SUGGESTION, framing/SUGGESTION,
         # lighting too-dark/WARNING, contrast/SUGGESTION, edge/WARNING)
         self.assertGreaterEqual(len(feedbacks), 3)

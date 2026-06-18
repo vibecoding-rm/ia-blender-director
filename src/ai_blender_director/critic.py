@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -102,14 +103,15 @@ class VisionCritic:
                 "2. Iluminación (Lighting) y Contraste\n"
                 "3. Composición General\n\n"
                 "Responde SOLO con un objeto JSON válido. El JSON debe contener exactamente una clave llamada 'feedback', "
-                "cuyo valor sea una lista de objetos. Cada objeto debe tener:\n"
+                "cuyo valor sea una lista de 0 a 3 objetos. Cada objeto debe tener:\n"
                 "- 'category': 'Framing', 'Lighting', o 'Composition'\n"
                 "- 'level': 'WARNING' (si es un error inaceptable que arruina el plano) o 'SUGGESTION' (si es una mejora menor)\n"
-                "- 'message': descripción técnica corta del problema estético."
+                "- 'message': descripción técnica corta del problema estético, máximo 18 palabras.\n"
+                "No uses otros valores de level. No devuelvas más de 3 objetos."
             )
             
             response = client.chat.completions.create(
-                model="google/gemini-2.0-flash-001",
+                model=settings.openrouter_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {
@@ -122,10 +124,11 @@ class VisionCritic:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.4,
+                max_tokens=450,
             )
             
             content = response.choices[0].message.content
-            data = json.loads(content)
+            data = _parse_json_object(content)
             
             raw_feedback = data.get("feedback", [])
             if not isinstance(raw_feedback, list):
@@ -133,11 +136,16 @@ class VisionCritic:
                 
             result = []
             for item in raw_feedback:
-                if isinstance(item, dict) and "category" in item and "level" in item and "message" in item:
+                if not isinstance(item, dict):
+                    continue
+                level = item.get("level")
+                if level not in {"WARNING", "SUGGESTION"}:
+                    continue
+                if "category" in item and "message" in item:
                     result.append(
                         CriticFeedback(
                             category=item["category"],
-                            level=item["level"],
+                            level=level,
                             message=item["message"]
                         )
                     )
@@ -345,3 +353,15 @@ class VisionCritic:
         if count == 0:
             return None
         return total_luminance / count
+
+
+def _parse_json_object(content: str | None) -> dict:
+    if not content:
+        raise json.JSONDecodeError("Empty response", "", 0)
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", content, flags=re.DOTALL)
+        if not match:
+            raise
+        return json.loads(match.group(0))

@@ -12,7 +12,6 @@ from .models import ShotSpec
 logger = logging.getLogger(__name__)
 
 DEFAULT_RESOLUTION = {"width": 1280, "height": 720}
-_OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 _SCENE_SCHEMA = {
@@ -81,7 +80,7 @@ def plan_scene(
             f"Usa roles: 'establishing' (plano general), 'action' (plano medio en movimiento), 'close_up' (primer plano)."
         )
         response = client.chat.completions.create(
-            model=_OPENROUTER_MODEL,
+            model=settings.openrouter_model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_msg},

@@ -40,6 +40,12 @@ class TestAssembleFramesSync(TestCase):
             call_args = mock_run.call_args[0][0]
             self.assertIn("ffmpeg", call_args)
             self.assertIn("-framerate", call_args)
+            self.assertIn("-crf", call_args)
+            self.assertIn("18", call_args)
+            self.assertIn("-preset", call_args)
+            self.assertIn("slow", call_args)
+            self.assertIn("-movflags", call_args)
+            self.assertIn("+faststart", call_args)
 
     def test_returns_false_when_ffmpeg_fails(self):
         from ai_blender_director.commands.video import assemble_frames_sync

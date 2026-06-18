@@ -43,6 +43,7 @@ def animate_subject(subject: bpy.types.Object, spec: dict, asset_refs: dict) -> 
     subject.rotation_euler = (0, 0, math.radians(180))
     subject.keyframe_insert(data_path="location", frame=frame_end)
     subject.keyframe_insert(data_path="rotation_euler", frame=frame_end)
+    apply_easing(subject)
 
 def animate_camera(camera: bpy.types.Object, spec: dict) -> None:
     frame_end = int(spec["duration_seconds"] * spec["fps"])
@@ -53,18 +54,21 @@ def animate_camera(camera: bpy.types.Object, spec: dict) -> None:
     if movement == "static":
         camera.keyframe_insert(data_path="location", frame=1)
         camera.keyframe_insert(data_path="location", frame=frame_end)
+        apply_easing(camera)
         return
     if movement == "push_in":
         camera.location = (0, -1.5 * distance, cam_z + 0.1 * distance)
         camera.keyframe_insert(data_path="location", frame=1)
         camera.location = (0, -0.85 * distance, cam_z)
         camera.keyframe_insert(data_path="location", frame=frame_end)
+        apply_easing(camera)
         return
     if movement == "dolly":
         camera.location = (-0.6 * distance, -distance, cam_z)
         camera.keyframe_insert(data_path="location", frame=1)
         camera.location = (0.6 * distance, -distance, cam_z)
         camera.keyframe_insert(data_path="location", frame=frame_end)
+        apply_easing(camera)
         return
 
     steps = 5
@@ -74,6 +78,7 @@ def animate_camera(camera: bpy.types.Object, spec: dict) -> None:
         frame = 1 + round(t * (frame_end - 1))
         camera.location = (distance * math.cos(angle), distance * math.sin(angle), cam_z)
         camera.keyframe_insert(data_path="location", frame=frame)
+    apply_easing(camera)
 
 def select_nla_animation(subject: bpy.types.Object, action_name: str, frame_end: int) -> bool:
     if not (subject.animation_data and subject.animation_data.nla_tracks):
@@ -130,3 +135,12 @@ def apply_nla_animation(
     strip.action_frame_end = min(action.frame_range[1], frame_end)
     strip.frame_end = frame_end
     return True
+
+def apply_easing(obj: bpy.types.Object) -> None:
+    if not obj.animation_data or not obj.animation_data.action:
+        return
+    for fcurve in obj.animation_data.action.fcurves:
+        for keyframe in fcurve.keyframe_points:
+            keyframe.interpolation = "BEZIER"
+            keyframe.handle_left_type = "AUTO_CLAMPED"
+            keyframe.handle_right_type = "AUTO_CLAMPED"

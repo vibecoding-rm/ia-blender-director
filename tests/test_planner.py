@@ -1,6 +1,11 @@
 """Tests for planner.py."""
 
 from unittest import TestCase
+from unittest.mock import patch
+
+
+def _without_openrouter():
+    return patch("ai_blender_director.planner.settings.openrouter_api_key", None)
 
 
 class TestSlugForPrompt(TestCase):
@@ -31,22 +36,26 @@ class TestSlugForPrompt(TestCase):
 class TestFallbackPlan(TestCase):
     def test_returns_n_shots(self):
         from ai_blender_director.planner import plan_shots
-        shots = plan_shots("cyberpunk hero in the rain", n_shots=3)
+        with _without_openrouter():
+            shots = plan_shots("cyberpunk hero in the rain", n_shots=3)
         self.assertEqual(len(shots), 3)
 
     def test_cyberpunk_scene_detected(self):
         from ai_blender_director.planner import plan_shots
-        shots = plan_shots("personaje en calle cyberpunk", n_shots=2)
+        with _without_openrouter():
+            shots = plan_shots("personaje en calle cyberpunk", n_shots=2)
         self.assertEqual(shots[0]["scene"], "cyberpunk street")
 
     def test_rain_weather_detected(self):
         from ai_blender_director.planner import plan_shots
-        shots = plan_shots("hero walking in the rain", n_shots=1)
+        with _without_openrouter():
+            shots = plan_shots("hero walking in the rain", n_shots=1)
         self.assertEqual(shots[0].get("weather"), "rain")
 
     def test_shots_have_required_keys(self):
         from ai_blender_director.planner import plan_shots
-        shots = plan_shots("any idea", n_shots=2)
+        with _without_openrouter():
+            shots = plan_shots("any idea", n_shots=2)
         required = {"scene", "style", "duration_seconds", "fps", "resolution",
                     "camera", "lighting", "subject", "action", "seed"}
         for shot in shots:
@@ -55,7 +64,8 @@ class TestFallbackPlan(TestCase):
 
     def test_unique_seeds(self):
         from ai_blender_director.planner import plan_shots
-        shots = plan_shots("forest hero", n_shots=3)
+        with _without_openrouter():
+            shots = plan_shots("forest hero", n_shots=3)
         seeds = [s["seed"] for s in shots]
         self.assertEqual(len(seeds), len(set(seeds)), "Seeds should be unique per shot")
 
@@ -68,7 +78,8 @@ class TestWriteShotPlan(TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
-            paths = write_shot_plan("cyberpunk rain hero", out, n_shots=2)
+            with _without_openrouter():
+                paths = write_shot_plan("cyberpunk rain hero", out, n_shots=2)
             self.assertEqual(len(paths), 2)
             for p in paths:
                 self.assertTrue(p.exists())
@@ -81,6 +92,7 @@ class TestWriteShotPlan(TestCase):
         from ai_blender_director.planner import write_shot_plan
 
         with tempfile.TemporaryDirectory() as tmp:
-            paths = write_shot_plan("any idea", Path(tmp), n_shots=2)
+            with _without_openrouter():
+                paths = write_shot_plan("any idea", Path(tmp), n_shots=2)
             names = [p.name for p in paths]
             self.assertTrue(any("establishing" in n or "action" in n or "close_up" in n for n in names))

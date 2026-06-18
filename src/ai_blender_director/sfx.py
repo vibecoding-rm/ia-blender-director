@@ -122,8 +122,21 @@ def mix_audio_track(
         print("warning: nada que mezclar (sin narración ni SFX)", file=sys.stderr)
         return False
         
-    aout = ffmpeg.filter(audio_streams, 'amix', inputs=len(audio_streams), normalize=0).filter('apad')
-    stream = ffmpeg.output(video_input.video, aout, str(output), vcodec='copy', acodec='aac').global_args('-shortest').overwrite_output()
+    aout = (
+        ffmpeg
+        .filter(audio_streams, 'amix', inputs=len(audio_streams), normalize=0)
+        .filter('loudnorm', I=-14, TP=-1.5, LRA=11)
+        .filter('apad')
+    )
+    stream = ffmpeg.output(
+        video_input.video,
+        aout,
+        str(output),
+        vcodec='copy',
+        acodec='aac',
+        audio_bitrate='192k',
+        movflags='+faststart',
+    ).global_args('-shortest').overwrite_output()
     
     cmd = ffmpeg.compile(stream)
     result = subprocess.run(cmd, capture_output=True)

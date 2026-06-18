@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     server_port: int = 8000
     server_host: str = "127.0.0.1"
     openrouter_api_key: str | None = None
+    openrouter_model: str = "google/gemini-2.5-flash"
     cors_allow_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

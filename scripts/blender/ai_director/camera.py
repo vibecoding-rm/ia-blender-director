@@ -44,4 +44,15 @@ def create_camera(spec: dict, subject: bpy.types.Object) -> bpy.types.Object:
     constraint.track_axis = "TRACK_NEGATIVE_Z"
     constraint.up_axis = "UP_Y"
     constraint.target = target
+    configure_depth_of_field(camera, target, lens_mm)
     return camera
+
+def configure_depth_of_field(camera: bpy.types.Object, target: bpy.types.Object, lens_mm: int) -> None:
+    camera.data.dof.use_dof = True
+    camera.data.dof.focus_object = target
+    if lens_mm >= 70:
+        camera.data.dof.aperture_fstop = 2.4
+    elif lens_mm <= 28:
+        camera.data.dof.aperture_fstop = 5.6
+    else:
+        camera.data.dof.aperture_fstop = 3.5
