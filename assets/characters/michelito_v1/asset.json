@@ -1,0 +1,14 @@
+{
+  "id": "michelito_v1",
+  "type": "character",
+  "name": "Michelito Filo, el Gallito Navaja",
+  "source": "original_glb",
+  "path": "michelito_v1.glb",
+  "metadata": {
+    "description": "Gallo fino joven con cresta engominada, espejuelos, espolones y navajita de cartón: la cara joven del agitprop. Caricatura satírica basada en el rol público del conductor de un programa de opinión oficialista. Rig de 11 huesos con pico articulado (Beak) para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Beak", "Wing.L", "Wing.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_michelito.py"
+  }
+}
