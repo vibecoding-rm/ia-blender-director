@@ -250,6 +250,7 @@ User Prompt
 
 | Documento | Contenido |
 |---|---|
+| [`docs/personajes.md`](docs/personajes.md) | Biblia de personajes: reparto, diseños 3D, voces y estructura del show |
 | [`docs/project_vision.md`](docs/project_vision.md) | Visión, principios, metas por fase y definición de éxito |
 | [`docs/architecture.md`](docs/architecture.md) | Contrato técnico actual, ShotSpec y flujo de render |
 | [`docs/roadmap.md`](docs/roadmap.md) | Plan de desarrollo por semanas |
