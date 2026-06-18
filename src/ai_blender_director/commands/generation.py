@@ -31,7 +31,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     create_parser.add_argument("--duration", type=int, default=4)
     create_parser.add_argument("--fps", type=int, default=24)
     create_parser.add_argument("--profile", choices=["preview", "final"], default="preview")
-    create_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
+    create_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
     create_parser.add_argument("--render", action="store_true")
     create_parser.add_argument("--dry-run", action="store_true")
     create_parser.add_argument("--vertical", action="store_true", help="Formato vertical 9:16 (Shorts/TikTok).")
@@ -48,7 +48,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     plan_parser.add_argument("--render", action="store_true", help="Renderizar todos los planos después de generarlos.")
     plan_parser.add_argument("--output-root", type=Path, default=Path("renders/previews"))
     plan_parser.add_argument("--profile", choices=["preview", "final"], default="preview")
-    plan_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
+    plan_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
     plan_parser.add_argument("--output-video", type=Path, default=None, help="Path for the final concatenated MP4.")
     plan_parser.add_argument("--vertical", action="store_true", help="Formato vertical 9:16 (Shorts/TikTok).")
 

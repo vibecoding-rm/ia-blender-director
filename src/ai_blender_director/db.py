@@ -4,12 +4,35 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 ROOT = Path(__file__).resolve().parents[2]
 DB_DIR = ROOT / "renders"
-DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "jobs.db"
 
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+_engine = None
+_session_factory = None
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        _engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+    return _engine
+
+
+def ensure_database() -> None:
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    Base.metadata.create_all(bind=get_engine())
+
+
+class _LazySessionLocal:
+    def __call__(self):
+        global _session_factory
+        ensure_database()
+        if _session_factory is None:
+            _session_factory = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+        return _session_factory()
+
+
+SessionLocal = _LazySessionLocal()
 
 
 class JobRecord(Base):
@@ -36,9 +59,6 @@ class PlanRecord(Base):
     video = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-
-Base.metadata.create_all(bind=engine)
 
 
 def get_db():

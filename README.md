@@ -37,7 +37,7 @@ El proyecto está orientado a producir sátira de noticias con personajes propio
 | Validación de `ShotSpec` (JSON Schema + Pydantic) | ✅ Funcional |
 | Generador local de shots desde prompts | ✅ Funcional |
 | Render jobs aislados con manifesto | ✅ Funcional |
-| Índice JSONL de renders | ✅ Funcional |
+| Registro SQLite de renders | ✅ Funcional |
 | Sets procedurales (cyberpunk, forest, desert, etc.) | ✅ Funcional |
 | Estilo claymation automático | ✅ Funcional |
 | Personajes propios: La Cotorra + El Comandante Cerdo | ✅ Funcional |
@@ -55,7 +55,7 @@ El proyecto está orientado a producir sátira de noticias con personajes propio
 ## Requisitos
 
 - **Python 3.12+**
-- **Blender 4.2 LTS** — instalado y disponible como `blender` en el PATH
+- **Blender 4.2 LTS** — instalado como `blender` en el PATH o configurado con `BLENDER_EXECUTABLE`
 - **FFmpeg** — para inspeccionar, ensamblar y convertir videos
 - **Piper TTS** *(opcional)* — para narración local en español
 
@@ -89,14 +89,17 @@ cp .env.example .env
 Copia `.env.example` a `.env` y completa los valores:
 
 ```ini
-# API key de Google AI (para el Director Agent)
-GOOGLE_API_KEY=tu_api_key_aqui
+# API key de OpenRouter (para el Director Agent y VisionCritic multimodal)
+OPENROUTER_API_KEY=tu_api_key_aqui
 
 # URL de ComfyUI (por defecto: local)
 COMFY_URL=http://127.0.0.1:8188
 
 # Ejecutable de Blender
 BLENDER_EXECUTABLE=blender
+
+# Orígenes permitidos por CORS, separados por coma
+CORS_ALLOW_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
 
 # Servidor FastAPI
 SERVER_HOST=127.0.0.1
@@ -182,7 +185,7 @@ renders/previews/<timestamp>_<scene>_<shot>/
     normal_proxy_frame_0001.png
 ```
 
-Todos los jobs también quedan registrados en `renders/index.jsonl` (append-only).
+Todos los jobs también quedan registrados en `renders/jobs.db` (SQLite), inicializado de forma perezosa cuando el CLI o el servidor necesitan persistir estado.
 
 ---
 

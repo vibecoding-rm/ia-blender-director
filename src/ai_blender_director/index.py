@@ -17,7 +17,7 @@ def append_index_event(
     returncode: int | None = None,
     extra: dict[str, Any] | None = None,
 ) -> None:
-    # index_path is kept for backward compatibility with CLI, but we use SQLite.
+    # index_path is kept for backward compatibility with older CLI calls; jobs are stored in SQLite.
     with SessionLocal() as db:
         # Check if job exists
         record = db.query(JobRecord).filter(JobRecord.job_id == job.job_id).first()

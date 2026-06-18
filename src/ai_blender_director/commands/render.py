@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ..config import settings
 from ..index import append_index_event
 from ..io import load_shot_spec
 from ..jobs import RenderJob, create_render_job, update_render_job_status
@@ -28,7 +29,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     render_parser.add_argument("shot", type=Path)
     render_parser.add_argument("--output-root", type=Path, default=Path("renders/previews"))
     render_parser.add_argument("--profile", choices=["preview", "final"], default="preview")
-    render_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
+    render_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
     render_parser.add_argument("--dry-run", action="store_true")
     render_parser.add_argument("--preview-only", action="store_true",
                                help="Render a single mid-shot frame at 25%% res instead of the full animation.")
@@ -73,9 +74,9 @@ def render_shot_to_job(
     preview_only: bool = False,
 ) -> tuple[int, RenderJob | None]:
     """Like run_render_shot but also returns the RenderJob for callers that need the job_dir."""
-    blender = shutil.which("blender")
+    blender = _resolve_blender_executable()
     if blender is None:
-        print("error: blender was not found in PATH", file=sys.stderr)
+        print(f"error: blender executable was not found: {settings.blender_executable}", file=sys.stderr)
         return 2, None
 
     _warn_missing_asset_paths(path)
@@ -130,7 +131,7 @@ def _build_blender_command(
     blender: str | None = None,
     preview_only: bool = False,
 ) -> list[str]:
-    executable = blender or shutil.which("blender") or "blender"
+    executable = blender or _resolve_blender_executable() or settings.blender_executable
     cmd = [
         executable,
         "--background",
@@ -144,6 +145,14 @@ def _build_blender_command(
     if preview_only:
         cmd.append("--preview-only")
     return cmd
+
+
+def _resolve_blender_executable() -> str | None:
+    configured = settings.blender_executable
+    configured_path = Path(configured).expanduser()
+    if configured_path.is_file():
+        return str(configured_path)
+    return shutil.which(configured)
 
 
 def _read_json_if_exists(path: Path) -> dict | None:
@@ -164,7 +173,8 @@ def _warn_missing_asset_paths(shot_path: Path) -> None:
         "animation": "animations",
     }
     for ref_key, asset_dir in type_dirs.items():
-        asset_id = data.get(ref_key)
+        assets = data.get("assets") if isinstance(data.get("assets"), dict) else {}
+        asset_id = data.get(ref_key) or assets.get(ref_key)
         if not asset_id:
             continue
         manifest = assets_root / asset_dir / asset_id / "asset.json"

@@ -22,7 +22,7 @@ from .commands.post_processing import run_comfy_render
 from .commands.video import assemble_video, concat_videos_async
 from .critic import VisionCritic
 from .config import settings
-from .db import SessionLocal, PlanRecord
+from .db import SessionLocal, PlanRecord, ensure_database
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +83,15 @@ def _db_upsert_plan(plan_id: str, data: dict) -> None:
         logger.error("Failed to persist plan %s to DB: %s", plan_id, exc)
 
 
+ensure_database()
 _load_plans_state()
 
 app = FastAPI(title="AI Blender Director API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -345,7 +346,7 @@ async def run_plan_pipeline_async(plan_id: str, jobs: list[RenderJob], workflow:
                 resolution=res_tuple,
                 fps=fps,
                 hook_title=hook_title,
-                narration_text=req.narration_text if not voice_path else None,  # Skip internal synthesis if we did it
+                narration_text=narration_text if not voice_path else None,  # Skip internal synthesis if we did it
                 voice=voice_path,
                 subtitles=True,
                 sfx=True,

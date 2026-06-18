@@ -52,13 +52,13 @@ class ShotSpec(BaseModel):
         try:
             if not isinstance(data, dict):
                 raise ShotValidationError("Shot spec must be a JSON object.")
+            data = dict(data)
+            assets = dict(data.get("assets") or {})
             # Map top level keys to assets for backwards compatibility
-            if "assets" not in data:
-                data["assets"] = {
-                    "character": data.get("character"),
-                    "environment": data.get("environment"),
-                    "animation": data.get("animation")
-                }
+            for key in ("character", "environment", "animation"):
+                if assets.get(key) is None and data.get(key) is not None:
+                    assets[key] = data[key]
+            data["assets"] = assets
             return cls.model_validate(data)
         except Exception as e:
             raise ShotValidationError(str(e))
@@ -66,3 +66,15 @@ class ShotSpec(BaseModel):
     @property
     def frame_count(self) -> int:
         return self.duration_seconds * self.fps
+
+    @property
+    def character(self) -> str | None:
+        return self.assets.character
+
+    @property
+    def environment(self) -> str | None:
+        return self.assets.environment
+
+    @property
+    def animation(self) -> str | None:
+        return self.assets.animation

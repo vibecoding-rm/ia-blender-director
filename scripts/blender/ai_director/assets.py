@@ -5,12 +5,13 @@ from .core import ASSETS_ROOT
 
 def resolve_asset_refs(spec: dict) -> dict:
     refs = {}
+    nested_assets = spec.get("assets") if isinstance(spec.get("assets"), dict) else {}
     for key, asset_type in [
         ("character", "characters"),
         ("environment", "environments"),
         ("animation", "animations"),
     ]:
-        asset_id = spec.get(key)
+        asset_id = spec.get(key) or nested_assets.get(key)
         if not asset_id:
             continue
         refs[key] = load_asset_ref(asset_id, asset_type)

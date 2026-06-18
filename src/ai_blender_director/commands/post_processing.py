@@ -15,11 +15,11 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     comfy_parser = subparsers.add_parser("comfy-render", help="Stylize a rendered job using ComfyUI.")
     comfy_parser.add_argument("job_id")
     comfy_parser.add_argument("--workflow", default="stylization_v1")
-    comfy_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
+    comfy_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
 
     critic_parser = subparsers.add_parser("critic", help="Analyze a rendered job using VisionCritic rules.")
     critic_parser.add_argument("job_id")
-    critic_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
+    critic_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
 
 def handle_comfy_render(args: argparse.Namespace) -> int:
     return run_comfy_render(args.index, args.job_id, args.workflow)

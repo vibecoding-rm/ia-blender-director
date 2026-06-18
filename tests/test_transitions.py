@@ -3,13 +3,9 @@ import sys
 import unittest
 import tempfile
 import json
+import shutil
 from pathlib import Path
 import ffmpeg
-
-# Prepend the newly installed FFmpeg bin directory to PATH so subprocesses can find it
-ffmpeg_bin = r"C:\Users\Computops\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin"
-if os.path.exists(ffmpeg_bin):
-    os.environ["PATH"] = ffmpeg_bin + os.pathsep + os.environ["PATH"]
 
 from ai_blender_director.postproduction import produce_short
 
@@ -22,6 +18,7 @@ def generate_dummy_video(path: Path, color: str, duration: float, fps: int = 25,
 
 
 class TestTransitionsE2E(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/FFprobe binaries are required")
     def test_transitions_and_zoom_e2e(self):
         resolution = (1280, 720)
         fps = 25  # Using 25 fps to match the default zoompan output rate and avoid FFmpeg xfade configuration crashes

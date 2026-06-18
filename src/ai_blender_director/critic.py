@@ -7,6 +7,11 @@ from typing import List
 
 from PIL import Image, ImageStat
 
+try:
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - exercised in environments without optional numpy
+    np = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +49,9 @@ class VisionCritic:
             
         self.width, self.height = self.beauty_img.size
         self.total_pixels = self.width * self.height
+        self.mask_array = np.asarray(self.mask_img, dtype=np.uint8) if np is not None else None
+        self.subject_mask = self.mask_array > 0 if np is not None else None
+        self.beauty_array = np.asarray(self.beauty_img, dtype=np.float32) if np is not None else None
 
     def analyze(self) -> List[CriticFeedback]:
         """Run LLM analysis if available, otherwise fallback to heuristic rules."""
@@ -141,15 +149,16 @@ class VisionCritic:
 
     def analyze_distance(self) -> CriticFeedback | None:
         """Rule: if subject occupies less than 10% of the frame, the camera is too far."""
-        subject_pixels = 0
-        pixels = self.mask_img.load()
-        
-        # IndexOB passes might save the index 1 as value 1 (nearly black) or as 255 (if normalized).
-        # We assume any value > 0 in the mask is the subject.
-        for y in range(self.height):
-            for x in range(self.width):
-                if pixels[x, y] > 0:
-                    subject_pixels += 1
+        if np is not None:
+            subject_pixels = int(np.count_nonzero(self.subject_mask))
+        else:
+            pixels = self.mask_img.load()
+            subject_pixels = sum(
+                1
+                for y in range(self.height)
+                for x in range(self.width)
+                if pixels[x, y] > 0
+            )
                     
         occupancy = subject_pixels / self.total_pixels
         
@@ -171,24 +180,29 @@ class VisionCritic:
 
     def analyze_framing(self) -> CriticFeedback | None:
         """Rule: if the subject's center of mass is too close to the borders, framing is weak."""
-        pixels = self.mask_img.load()
-        sum_x = 0
-        sum_y = 0
-        count = 0
-        
-        for y in range(self.height):
-            for x in range(self.width):
-                if pixels[x, y] > 0:
-                    sum_x += x
-                    sum_y += y
-                    count += 1
+        if np is not None:
+            ys, xs = np.nonzero(self.subject_mask)
+            count = int(xs.size)
+            if count == 0:
+                return None
+            cx = float(xs.mean())
+            cy = float(ys.mean())
+        else:
+            pixels = self.mask_img.load()
+            sum_x = 0
+            sum_y = 0
+            count = 0
+            for y in range(self.height):
+                for x in range(self.width):
+                    if pixels[x, y] > 0:
+                        sum_x += x
+                        sum_y += y
+                        count += 1
+            if count == 0:
+                return None
+            cx = sum_x / count
+            cy = sum_y / count
                     
-        if count == 0:
-            return None  # Handled by distance analyzer
-            
-        cx = sum_x / count
-        cy = sum_y / count
-        
         margin_x = self.width * self.config.framing_margin_ratio
         margin_y = self.height * self.config.framing_margin_ratio
         
@@ -214,24 +228,9 @@ class VisionCritic:
 
     def analyze_lighting(self) -> CriticFeedback | None:
         """Rule: if the average luminance of the subject is too low, it's too dark."""
-        mask_pixels = self.mask_img.load()
-        beauty_pixels = self.beauty_img.load()
-
-        total_luminance = 0
-        count = 0
-
-        for y in range(self.height):
-            for x in range(self.width):
-                if mask_pixels[x, y] > 0:
-                    r, g, b = beauty_pixels[x, y]
-                    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-                    total_luminance += lum
-                    count += 1
-
-        if count == 0:
+        avg_luminance = self._subject_average_luminance()
+        if avg_luminance is None:
             return None
-
-        avg_luminance = total_luminance / count
 
         if avg_luminance < self.config.min_avg_luminance:
             return CriticFeedback(
@@ -244,24 +243,9 @@ class VisionCritic:
 
     def analyze_overexposure(self) -> CriticFeedback | None:
         """Rule: if the subject's average luminance is too high, it's blown out."""
-        mask_pixels = self.mask_img.load()
-        beauty_pixels = self.beauty_img.load()
-
-        total_luminance = 0
-        count = 0
-
-        for y in range(self.height):
-            for x in range(self.width):
-                if mask_pixels[x, y] > 0:
-                    r, g, b = beauty_pixels[x, y]
-                    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-                    total_luminance += lum
-                    count += 1
-
-        if count == 0:
+        avg_luminance = self._subject_average_luminance()
+        if avg_luminance is None:
             return None
-
-        avg_luminance = total_luminance / count
 
         if avg_luminance > self.config.max_avg_luminance:
             return CriticFeedback(
@@ -293,19 +277,38 @@ class VisionCritic:
         bx = int(self.width * border)
         by = int(self.height * border)
 
-        mask_pixels = self.mask_img.load()
-        total_subject = 0
-        border_subject = 0
-
-        for y in range(self.height):
-            for x in range(self.width):
-                if mask_pixels[x, y] > 0:
-                    total_subject += 1
-                    if x < bx or x >= self.width - bx or y < by or y >= self.height - by:
-                        border_subject += 1
+        if np is not None:
+            total_subject = int(np.count_nonzero(self.subject_mask))
+        else:
+            mask_pixels = self.mask_img.load()
+            total_subject = 0
+            border_subject = 0
+            for y in range(self.height):
+                for x in range(self.width):
+                    if mask_pixels[x, y] > 0:
+                        total_subject += 1
+                        if x < bx or x >= self.width - bx or y < by or y >= self.height - by:
+                            border_subject += 1
+            if total_subject == 0:
+                return None
+            ratio = border_subject / total_subject
+            if ratio > self.config.max_border_subject_ratio:
+                return CriticFeedback(
+                    category="Framing",
+                    level="WARNING",
+                    message=f"{ratio:.0%} of subject pixels are near the frame edge. Subject may be cropped.",
+                )
+            return None
 
         if total_subject == 0:
             return None
+
+        border_mask = np.zeros_like(self.subject_mask, dtype=bool)
+        border_mask[:by, :] = True
+        border_mask[self.height - by:, :] = True
+        border_mask[:, :bx] = True
+        border_mask[:, self.width - bx:] = True
+        border_subject = int(np.count_nonzero(self.subject_mask & border_mask))
 
         ratio = border_subject / total_subject
 
@@ -317,3 +320,28 @@ class VisionCritic:
             )
 
         return None
+
+    def _subject_average_luminance(self) -> float | None:
+        if np is not None:
+            if not np.any(self.subject_mask):
+                return None
+            luminance = (
+                0.2126 * self.beauty_array[:, :, 0]
+                + 0.7152 * self.beauty_array[:, :, 1]
+                + 0.0722 * self.beauty_array[:, :, 2]
+            )
+            return float(luminance[self.subject_mask].mean())
+
+        mask_pixels = self.mask_img.load()
+        beauty_pixels = self.beauty_img.load()
+        total_luminance = 0
+        count = 0
+        for y in range(self.height):
+            for x in range(self.width):
+                if mask_pixels[x, y] > 0:
+                    r, g, b = beauty_pixels[x, y]
+                    total_luminance += 0.2126 * r + 0.7152 * g + 0.0722 * b
+                    count += 1
+        if count == 0:
+            return None
+        return total_luminance / count

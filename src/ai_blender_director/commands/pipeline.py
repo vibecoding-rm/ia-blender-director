@@ -20,7 +20,7 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     pipeline_parser.add_argument("--output-root", type=Path, default=Path("renders/previews"))
     pipeline_parser.add_argument("--duration", type=int, default=4)
     pipeline_parser.add_argument("--fps", type=int, default=24)
-    pipeline_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"))
+    pipeline_parser.add_argument("--index", type=Path, default=Path("renders/index.jsonl"), help=argparse.SUPPRESS)
     pipeline_parser.add_argument("--workflow", default="stylization_v1")
     pipeline_parser.add_argument("--comfy-url", default="http://127.0.0.1:8188")
     pipeline_parser.add_argument(

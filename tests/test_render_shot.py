@@ -35,7 +35,8 @@ class TestRenderShotToJob(TestCase):
             shot = self._write_shot(Path(tmp))
             output_root = Path(tmp) / "renders"
 
-            with patch("shutil.which", return_value=None):
+            with patch("ai_blender_director.commands.render.settings.blender_executable", "missing-blender"), \
+                 patch("shutil.which", return_value=None):
                 code, job = render_shot_to_job(
                     shot, output_root, "preview",
                     output_root / "index.jsonl", dry_run=False,
@@ -43,6 +44,25 @@ class TestRenderShotToJob(TestCase):
 
             self.assertEqual(code, 2)
             self.assertIsNone(job)
+
+    def test_uses_configured_blender_executable(self):
+        from ai_blender_director.commands.render import render_shot_to_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            shot = self._write_shot(tmp_path)
+            output_root = tmp_path / "renders"
+            index_path = tmp_path / "index.jsonl"
+
+            with patch("ai_blender_director.commands.render.settings.blender_executable", "custom-blender"), \
+                 patch("shutil.which", return_value="C:/tools/blender.exe") as mock_which:
+                code, job = render_shot_to_job(
+                    shot, output_root, "preview", index_path, dry_run=True,
+                )
+
+            mock_which.assert_called_with("custom-blender")
+            self.assertEqual(code, 0)
+            self.assertIsNotNone(job)
 
     def test_dry_run_creates_job_without_blender(self):
         from ai_blender_director.commands.render import render_shot_to_job
