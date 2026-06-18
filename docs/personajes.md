@@ -246,3 +246,83 @@ Orden recomendado (impacto cómico + reutilización):
 2. `assets/characters/<id>/asset.json`.
 3. Alta en `planner.py` → `character_mappings` (palabras clave → `<id>`).
 4. Voz por personaje en el backend TTS.
+
+---
+
+## 10. La Cúpula del poder y aliados (banco de reserva)
+
+> Reparto **investigado y definido por si se necesita** (no modelado aún). Mismas reglas: caricaturas
+> satíricas de figuras públicas por su rol político/público documentado.
+
+### 🐊 El Caimán General — *el poder real tras el trono*
+- **Caricaturiza a:** Raúl Castro, General de Ejército que conserva enorme influencia pese a su edad;
+  avaló el paquete de "reforma" y sigue como figura tutelar del régimen. (Cuba misma tiene forma de
+  caimán: "el caimán" es la isla.)
+- **Diseño:** cocodrilo viejísimo de plastilina en uniforme verde olivo, gafas oscuras, mueve los
+  **hilos** de una marioneta. Plastilina verde-musgo (`#3B4A2A`).
+- **Personalidad:** habla poco, decide todo; sonrisa de reptil.
+- **Catchphrase:** *"Tranquilo, muchacho, yo te puse ahí."*
+- **Gag firma:** desde la sombra **maneja los hilos** del Guanajo Designado; cuando algo sale mal,
+  "ya está retirado".
+- **Voz (TTS):** masculina, anciana, rasposa, lentísima.
+
+### 🦃 El Guanajo Designado — *el presidente puppet*
+- **Caricaturiza a:** Miguel Díaz-Canel, Primer Secretario del PCC y presidente "designado" por Raúl.
+  El pueblo lo corea **"Singao"** desde el 11J (de un rap de Aldo el Aldeano y Silvito el Libre;
+  hasta la RAE comentó la grafía). *(En cubano, "guanajo" = pavo, sinónimo de bobo/torpe.)*
+- **Diseño:** **guanajo (pavo)** desgarbado en traje grande que le queda mal, con **hilos de marioneta**
+  saliéndole de la espalda hacia el Caimán. Moco rojo caído. Plastilina parda (`#6E5A3A`).
+- **Personalidad:** torpe, repite consignas, se enreda; valentón solo en discurso.
+- **Catchphrases:** *"¡Ordeno y mando… lo que me ordenen!"* · *"Eso lo resolvemos con una tarea."*
+- **Gag firma:** cada vez que aparece, **una multitud fuera de cuadro corea "¡Siiingao!"** y él finge
+  que aplauden; tropieza con los propios hilos.
+- **Voz (TTS):** masculina, monótona, lee de tarjetas, se traba.
+
+### 🐐 Gerardo el Chivatón — *jefe de los CDR*
+- **Caricaturiza a:** Gerardo Hernández Nordelo, uno de los "Cinco Héroes", hoy **Coordinador Nacional
+  de los CDR** (los comités de vigilancia de barrio). *(Pun: "chivo" → "chivato" = soplón.)*
+- **Diseño:** **chivo (cabra)** con binoculares, medalla de "Héroe", libreta de anotaciones y un
+  ojo pegado a una **persiana**. Boina. Plastilina blanco-sucio (`#C8C2B0`).
+- **Personalidad:** vigila al vecino, anota todo, delata por deporte.
+- **Catchphrases:** *"Compañero, lo estoy anotando."* · *"¿Y esa visita de quién es?"*
+- **Gag firma:** espía por la persiana y **reporta hasta quién cocina con gas**; toca a las puertas
+  "para el CDR".
+- **Voz (TTS):** masculina, chismosa, susurrante.
+
+### 🦚 Marrero, el Conserje de Cinco Estrellas — *Primer Ministro*
+- **Caricaturiza a:** Manuel Marrero Cruz, Primer Ministro surgido del sector turismo/hoteles.
+- **Diseño:** **pavo real** en uniforme de conserje de hotel de lujo, llaves doradas, mientras detrás
+  hay apagón. Plastilina azul-pavo (`#1F6F8B`).
+- **Personalidad:** inaugura hoteles vacíos mientras el país está a oscuras.
+- **Catchphrase:** *"¡Bienvenidos a un nuevo hotel cinco estrellas!"* (se va la luz).
+- **Gag firma:** despliega la cola de pavo real = folletos de hoteles; nadie tiene para entrar.
+- **Voz (TTS):** masculina, servil, de recepcionista.
+
+### 🐍 Bruno Bloqueo, el Majá Canciller — *Relaciones Exteriores*
+- **Caricaturiza a:** Bruno Rodríguez Parrilla, Ministro de Relaciones Exteriores; voz del "bloqueo"
+  en foros internacionales.
+- **Diseño:** **majá** (serpiente cubana) en traje diplomático, enrollado en un micrófono de la ONU.
+  Plastilina verde-gris (`#5A6B4A`).
+- **Personalidad:** todo lo explica con una sola palabra: *"bloqueo"*.
+- **Catchphrase:** *"Esto es culpa del bloqueo."* (lo dice ante cualquier pregunta).
+- **Gag firma:** saca un cartel de "BLOQUEO" para tapar cualquier dato incómodo.
+- **Voz (TTS):** masculina, suave, diplomática, siseante.
+
+### 🎸 El Trovador del Picadillo de Soya — *artistas oficialistas*
+- **Caricaturiza a:** Raúl Torres y el coro de la canción oficialista *"Patria o Muerte por la Vida"*
+  (Annie Garcés, Dayana Divo, etc.), respuesta del régimen a *Patria y Vida*.
+- **Diseño:** **sinsonte/canario** en guayabera con guitarra, cantándole a **retratos de líderes
+  muertos**; detrás, un coro de pajaritos idénticos. Plastilina pardo-amarillo (`#C2A23A`).
+- **Personalidad:** compone odas por encargo; cambia la letra según la orientación del día.
+- **Catchphrases:** *"¡Patria o muerte… por la vida… del régimen!"* · *"Esta se la dedico al Comandante."*
+- **Gag firma:** su canción acumula *dislikes* en pantalla en tiempo real; el coro desafina.
+- **Voz (TTS):** masculina, trovador meloso; coro de relleno.
+
+| Personaje | `asset_id` sugerido | Animal/forma | Uso |
+|---|---|---|---|
+| El Caimán General | `caiman_v1` | cocodrilo militar | Titiritero del poder |
+| El Guanajo Designado | `guanajo_v1` | pavo marioneta | "Presidente" puppet |
+| Gerardo el Chivatón | `chivaton_v1` | chivo vigilante | Jefe de los CDR |
+| Marrero (Conserje 5★) | `marrero_v1` | pavo real | Hoteles vs. apagones |
+| Bruno Bloqueo | `bruno_v1` | majá diplomático | Todo es "el bloqueo" |
+| Trovador del Picadillo | `trovador_v1` | sinsonte + coro | Artistas oficialistas |
