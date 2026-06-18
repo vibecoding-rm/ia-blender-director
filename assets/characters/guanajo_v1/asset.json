@@ -1,0 +1,14 @@
+{
+  "id": "guanajo_v1",
+  "type": "character",
+  "name": "El Guanajo Designado",
+  "source": "original_glb",
+  "path": "guanajo_v1.glb",
+  "metadata": {
+    "description": "Pavo (guanajo) desgarbado en traje grande, con moco rojo caído e hilos de marioneta hacia una cruz de control: el 'presidente' puppet. Caricatura satírica del rol público del mandatario designado (el pueblo lo corea 'Singao' desde el 11J). Rig de 11 huesos con pico articulado (Beak) para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Beak", "Wing.L", "Wing.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_guanajo.py"
+  }
+}
