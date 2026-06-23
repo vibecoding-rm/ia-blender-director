@@ -49,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
             return management.handle_show(args)
         if args.command == "assets":
             return management.handle_assets(args)
+        if args.command == "validate-assets":
+            return management.handle_validate_assets(args)
         if args.command == "preflight":
             return management.handle_preflight(args)
 

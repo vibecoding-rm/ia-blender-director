@@ -64,6 +64,13 @@ class TestFallbackPlan(TestCase):
             shots = plan_shots("gaby filo lee del teleprompter matriz de opinión", n_shots=1)
         self.assertEqual(shots[0]["character"], "gaby_v1")
 
+    def test_news_prompt_respects_explicit_character(self):
+        from ai_blender_director.planner import plan_shots
+        with _without_openrouter():
+            shots = plan_shots("noticiero con bruno bloqueo como canciller", n_shots=1)
+        self.assertEqual(shots[0]["scene"], "news studio")
+        self.assertEqual(shots[0]["character"], "bruno_v1")
+
     def test_remaining_character_mappings_detected(self):
         from ai_blender_director.planner import plan_shots
         cases = {

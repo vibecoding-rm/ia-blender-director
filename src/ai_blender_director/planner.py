@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import settings
+from .character_registry import character_schema_text, detect_character
 from .models import ShotSpec
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ _SCENE_SCHEMA = {
             "subject": "main subject of the shot",
             "action": "what the subject is doing",
             "weather": "rain, fog, snow, or null",
-            "character_asset": "cotorra_v1 (presentadora), comandante_cerdo_v1 (vocero), humbrete_v1, michelito_v1, gaby_v1, randy_v1, arleen_v1, brigada_v1, lazaro_v1, pupila_v1, guerrero_v1, guanajo_v1, caiman_v1, chivaton_v1, marrero_v1, bruno_v1, trovador_v1, ciberclarias_v1, protagonista_v2, or null",
+            "character_asset": character_schema_text(),
             "environment_asset": "cyberpunk_street_v1, forest_v1, or null",
             "animation_asset": "walk_v1, run_v1, idle_v1, or null",
             "transition": {
@@ -339,34 +340,11 @@ def _fallback_plan(
     # 2. Clima
     weather = "rain" if any(w in normalized for w in ["lluvia", "rain"]) else "fog" if any(w in normalized for w in ["niebla", "fog"]) else None
 
-    # 3. Personaje
-    character_mappings = [
-        (["humbrete", "humbertico", "humberto", "sabueso", "fiscal", "bulldog"], "humbrete_v1"),
-        (["michelito", "michel", "con filo", "gallito", "gallo", "navaja"], "michelito_v1"),
-        (["gaby", "gabriela", "lechuza", "buho", "búho", "teleprompter", "matriz de opinion", "matriz de opinión"], "gaby_v1"),
-        (["randy", "mesa redonda", "tortuga", "redondo", "decano"], "randy_v1"),
-        (["arleen", "chapea", "chapeando", "jutia", "jutía", "podadora", "tijeras"], "arleen_v1"),
-        (["brigada", "copy-paste", "copypaste", "clones", "teclado", "minions"], "brigada_v1"),
-        (["lazaro", "lázaro", "mediodia", "mediodía", "huron", "hurón", "ultima hora", "última hora"], "lazaro_v1"),
-        (["pupila", "fantasma", "retrato", "iroel", "insomne"], "pupila_v1"),
-        (["guerrero", "lata", "anonimo", "anónimo", "casco", "armadura", "caballero"], "guerrero_v1"),
-        (["guanajo", "designado", "diaz-canel", "diazcanel", "canel", "presidente", "pavo", "singao"], "guanajo_v1"),
-        (["caiman", "caimán", "cocodrilo", "raul", "raúl", "general", "titiritero", "hilos"], "caiman_v1"),
-        (["chivaton", "chivatón", "gerardo", "cdr", "chivo", "vigilante", "binoculares"], "chivaton_v1"),
-        (["marrero", "conserje", "hotel", "hoteles", "cinco estrellas", "pavo real"], "marrero_v1"),
-        (["bruno", "bloqueo", "canciller", "maja", "majá", "diplomatico", "diplomático"], "bruno_v1"),
-        (["trovador", "picadillo", "soya", "guitarra", "cancion", "canción", "sinsonte"], "trovador_v1"),
-        (["ciberclaria", "ciberclarias", "troll", "enjambre", "claria", "bagre"], "ciberclarias_v1"),
-        (["cerdo", "comandante", "portavoz", "pig"], "comandante_cerdo_v1"),
-        (["cotorra", "mascota", "loro", "parrot"], "cotorra_v1"),
-        (["personaje", "character", "hero", "heroe"], "protagonista_v2")
-    ]
-    character = "cotorra_v1" if scene == "news studio" else None
-    if not character:
-        for keywords, char_id in character_mappings:
-            if any(w in normalized for w in keywords):
-                character = char_id
-                break
+    # 3. Personaje. Primero se respeta cualquier personaje explicito; La Cotorra
+    # solo es default cuando el prompt pide noticiero sin nombrar otro asset.
+    character = detect_character(prompt)
+    if character is None and scene == "news studio":
+        character = "cotorra_v1"
 
     # 4. Animación
     animation = "idle_v1"

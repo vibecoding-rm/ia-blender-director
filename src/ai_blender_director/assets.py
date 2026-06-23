@@ -51,6 +51,21 @@ class AssetRegistry:
             raise AssetValidationError(f"Asset not found: {asset_id}")
         raise AssetValidationError(f"Asset id is ambiguous: {asset_id}")
 
+    def validate_assets(self, asset_type: str | None = None) -> list[str]:
+        """Return validation problems for registered assets.
+
+        This is intentionally filesystem-only. Deep GLB checks are performed by
+        the Blender validator script because Python cannot reliably inspect rigs
+        without importing the scene.
+        """
+        problems: list[str] = []
+        for asset in self.list_assets(asset_type):
+            if not asset.exists:
+                problems.append(f"{asset.asset_id}: missing file {asset.path}")
+            if asset.asset_type == "character":
+                problems.extend(_validate_character_manifest(asset))
+        return problems
+
 
 def _asset_dir_name(asset_type: str) -> str:
     return asset_type if asset_type.endswith("s") else f"{asset_type}s"
@@ -106,3 +121,23 @@ def _optional_str(data: dict[str, Any], key: str, *, default: str) -> str:
     if not isinstance(value, str) or not value.strip():
         return default
     return value.strip()
+
+
+def _validate_character_manifest(asset: AssetSpec) -> list[str]:
+    problems: list[str] = []
+    metadata = asset.metadata
+    bones = metadata.get("bones")
+    animations = metadata.get("embedded_animations")
+    if bones is not None and (not isinstance(bones, list) or not all(isinstance(b, str) for b in bones)):
+        problems.append(f"{asset.asset_id}: metadata.bones must be a list of strings")
+    lip_sync_ready = isinstance(bones, list) and bool({"Jaw", "Beak"} & set(bones))
+    if lip_sync_ready:
+        if "Root" not in bones:
+            problems.append(f"{asset.asset_id}: metadata.bones missing Root")
+    if not isinstance(animations, list) or not all(isinstance(a, str) for a in animations):
+        problems.append(f"{asset.asset_id}: metadata.embedded_animations must be a list of strings")
+    elif lip_sync_ready:
+        for name in ("Idle", "Talk", "Walk"):
+            if name not in animations:
+                problems.append(f"{asset.asset_id}: metadata.embedded_animations missing {name}")
+    return problems

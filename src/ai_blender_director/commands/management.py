@@ -1,6 +1,7 @@
 import argparse
 import json
 import shutil
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,11 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     assets_parser = subparsers.add_parser("assets", help="List registered character, environment, and animation assets.")
     assets_parser.add_argument("--root", type=Path, default=Path("assets"))
     assets_parser.add_argument("--type", choices=["character", "environment", "animation"])
+
+    validate_assets_parser = subparsers.add_parser("validate-assets", help="Audit asset manifests and optional GLB rigs.")
+    validate_assets_parser.add_argument("--root", type=Path, default=Path("assets"))
+    validate_assets_parser.add_argument("--type", choices=["character", "environment", "animation"])
+    validate_assets_parser.add_argument("--blender", action="store_true", help="Import character GLBs in Blender and validate rig/actions.")
 
     preflight_parser = subparsers.add_parser("preflight", help="Check local runtime dependencies before rendering.")
     preflight_parser.add_argument("--check-comfy", action="store_true", help="Also verify that ComfyUI is reachable.")
@@ -89,6 +95,28 @@ def handle_assets(args: argparse.Namespace) -> int:
         path_status = "placeholder" if asset.path is None else str(asset.path)
         exists = "ready" if asset.exists else "missing-file"
         print(f"{asset.asset_type:11} {asset.asset_id:28} {asset.source:24} {exists:12} {path_status}")
+    return 0
+
+
+def handle_validate_assets(args: argparse.Namespace) -> int:
+    problems = AssetRegistry(args.root).validate_assets(args.type)
+    if problems:
+        for problem in problems:
+            print(f"error: {problem}", file=sys.stderr)
+        return 2
+    print("ok: asset manifests")
+
+    if args.blender:
+        blender = _resolve_blender_executable()
+        if not blender:
+            print(f"error: Blender not found ({settings.blender_executable})", file=sys.stderr)
+            return 2
+        script = ROOT / "scripts" / "blender" / "validate_character_assets.py"
+        result = subprocess.run(
+            [blender, "--background", "--python", str(script)],
+            cwd=ROOT,
+        )
+        return result.returncode
     return 0
 
 
