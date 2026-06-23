@@ -234,7 +234,7 @@ Orden recomendado (impacto cómico + reutilización):
 | 3 | **Michelito Filo** | `michelito_v1` | gallo fino | Conecta directo con *Con Filo* |
 | 4 | **Randy Redondo** | `randy_v1` | tortuga | Capítulos de apagones/bloqueo/economía |
 | 5 | **Guerrero de Lata** | `guerrero_v1` | armadura hueca | Gran personaje de redes/amenazas |
-| 6 | Gaby Filo | `gaby_v1` | lechuza | Dúo con Michelito |
+| 6 | **Gaby Filo** | `gaby_v1` | lechuza | Dúo con Michelito |
 | 7 | Arleen Chapea | `arleen_v1` | jutía | Dúo con Randy |
 | 8 | Brigada Copy-Paste | `brigada_v1` | clones con teclado | Minions (instanciados) |
 | 9 | Lázaro Mediodía | `lazaro_v1` | hurón | Secundario rápido |

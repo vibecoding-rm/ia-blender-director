@@ -1,0 +1,14 @@
+{
+  "id": "gaby_v1",
+  "type": "character",
+  "name": "Gaby Filo, la Lechuza de Teleprompter",
+  "source": "original_glb",
+  "path": "gaby_v1.glb",
+  "metadata": {
+    "description": "Lechuza seria de teleprompter, con ojos ambar enormes, pestanas duras, blazer academico y pantalla de guion verde: la intelectual condescendiente del aparato. Rig de 11 huesos con pico articulado (Beak) para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Beak", "Wing.L", "Wing.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_gaby.py"
+  }
+}
