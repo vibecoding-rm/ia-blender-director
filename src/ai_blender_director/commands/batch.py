@@ -9,7 +9,7 @@ Formato del archivo (una línea JSON por episodio):
 
     {"id": "ep001", "prompt": "la cotorra presenta...", "hook": "TITULAR",
      "narration": "guion...", "shots": 6, "duration": 3, "fps": 12,
-     "vertical": true}
+     "vertical": true, "voice_character": "cotorra_v1"}
 
 Campos obligatorios: id, prompt. El resto tiene defaults de episodio Short.
 """
@@ -32,6 +32,7 @@ DEFAULTS: dict[str, Any] = {
     "hook": None,
     "narration": None,
     "voice": None,
+    "voice_character": None,
 }
 
 
@@ -136,6 +137,7 @@ def _produce_episode(episode: dict[str, Any], output_video: Path, args: argparse
         hook=episode.get("hook"),
         narration=episode.get("narration"),
         voice=Path(episode["voice"]) if episode.get("voice") else None,
+        voice_character=episode.get("voice_character"),
         output_video=output_video,
         shot_output_dir=args.shot_output_dir,
         output_root=args.output_root,

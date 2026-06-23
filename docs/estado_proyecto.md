@@ -19,6 +19,7 @@
 | Michelito Filo | `michelito_v1` | gallo navaja | `Beak` | ✅ |
 | Randy Redondo | `randy_v1` | tortuga de mesa | `Jaw` | ✅ |
 | Guerrero de Lata | `guerrero_v1` | armadura anónima | visera `Jaw` | ✅ |
+| El Guanajo Designado | `guanajo_v1` | pavo marioneta | pico `Beak` | ✅ |
 
 Cada uno tiene acciones NLA **Idle / Talk / Walk** y huesos de ojos para parpadeo. Los `export_*.py`
 viven en `scripts/blender/` y los GLB fueron **construidos y verificados** en Blender 4.2.
@@ -27,8 +28,8 @@ viven en `scripts/blender/` y los GLB fueron **construidos y verificados** en Bl
 
 - **Aparato (TV/digital):** Gaby Filo (lechuza), Arleen Chapea (jutía), Brigada Copy-Paste (clones),
   Lázaro Mediodía (hurón), Fantasma de la Pupila (retrato).
-- **Cúpula y aliados:** El Caimán General (Raúl), El Guanajo Designado (Díaz-Canel, "Singao"),
-  Gerardo el Chivatón (jefe CDR), Marrero el Conserje 5★ (PM), Bruno Bloqueo (canciller),
+- **Cúpula y aliados:** El Caimán General (Raúl), Gerardo el Chivatón (jefe CDR),
+  Marrero el Conserje 5★ (PM), Bruno Bloqueo (canciller),
   El Trovador del Picadillo de Soya (artistas oficialistas).
 
 Todos con diseño 3D, gags, voz y `asset_id` sugerido en [`personajes.md`](personajes.md).
@@ -42,7 +43,7 @@ Todos con diseño 3D, gags, voz y `asset_id` sugerido en [`personajes.md`](perso
 | **Lip-sync por audio** | `lipsync.py` + `scripts/blender/ai_director/lipsync.py` | Rhubarb → hueso `Jaw`/`Beak`; degrada elegante sin el binario |
 | **Lip-sync end-to-end multi-shot** | `commands/pipeline.py` (`_prepare_lipsync`) | sintetiza voz antes del render, inyecta visemas por plano (`narration_offset`) |
 | **Gráficos broadcast** | `broadcast.py` | lower-third, ticker desplazable, bug "ÚLTIMA HORA"; auto-activados en escenas de noticiero |
-| **TTS pluggable** | `tts.py` + `config.py` | `piper` (default) / `xtts` / `command`; fallback a piper |
+| **TTS pluggable** | `tts.py` + `config.py` | `piper` (default) / `xtts` / `command`; fallback a piper; voces por `asset_id` con `TTS_CHARACTER_VOICES` |
 | **Director Agent (LLM)** | `planner.py` | JSON-mode robusto por defecto; Instructor **opt-in** (`director_use_instructor`) |
 | **Multi-shot dirigido** | `auto-director --shots N` | default **4** planos (ritmo de retención) |
 | **Calidad profesional** | `--profile final`, `generation.py` | 1080×1920, 128 samples, raytracing; vertical 9:16 |
@@ -100,7 +101,7 @@ ai-blender-director auto-director "La Cotorra presenta noticia urgente del régi
 ## 6. Próximos pasos sugeridos
 
 1. **Render real en GPU** (Vast.ai) para ver el reparto en movimiento — el mayor pendiente.
-2. Modelar la **cúpula** (Guanajo Designado + Caimán General) y/o secundarios (Gaby Filo, Arleen).
+2. Modelar la **cúpula** restante (Caimán General) y/o secundarios (Gaby Filo, Arleen).
 3. **Gags de escena** (Humbrete baja la luz / tapa cámara; Ciberclarias se hunden) como
    comportamiento de postproducción.
-4. Voces diferenciadas por personaje vía el backend TTS.
+4. Presets de voz reales por personaje (grabar/descargar modelos `.onnx` y mapearlos en `.env`).

@@ -16,6 +16,7 @@ nunca se queda sin narración por un problema de dependencias.
 from __future__ import annotations
 
 import logging
+import json
 import shlex
 import subprocess
 from pathlib import Path
@@ -26,6 +27,64 @@ logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_VOICE = ROOT / "assets" / "voices" / "es_MX-claude-high.onnx"
+
+
+def voice_for_character(character: str | None, explicit_voice: Path | None = None) -> Path | None:
+    """Resolve a Piper voice for a character asset id.
+
+    An explicit CLI/batch voice always wins. Otherwise, settings.tts_character_voices
+    can be either JSON (`{"cotorra_v1": "assets/voices/cotorra.onnx"}`) or a compact
+    semicolon list (`cotorra_v1=assets/voices/cotorra.onnx;cerdo_v1=...`).
+    Relative paths are resolved from the repository root.
+    """
+    if explicit_voice is not None:
+        return explicit_voice
+    if not character:
+        return None
+
+    raw = settings.tts_character_voices
+    if not raw:
+        return None
+
+    mapping = _parse_character_voice_map(raw)
+    voice = mapping.get(character)
+    if not voice:
+        return None
+
+    path = Path(voice).expanduser()
+    if not path.is_absolute():
+        path = ROOT / path
+    return path
+
+
+def _parse_character_voice_map(raw: str) -> dict[str, str]:
+    raw = raw.strip()
+    if not raw:
+        return {}
+    if raw.startswith("{"):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("TTS_CHARACTER_VOICES no es JSON valido; ignorando mapa.")
+            return {}
+        if not isinstance(data, dict):
+            logger.warning("TTS_CHARACTER_VOICES debe ser un objeto JSON.")
+            return {}
+        return {str(k): str(v) for k, v in data.items() if k and v}
+
+    mapping: dict[str, str] = {}
+    for item in raw.split(";"):
+        if not item.strip():
+            continue
+        if "=" not in item:
+            logger.warning("Entrada invalida en TTS_CHARACTER_VOICES: %s", item)
+            continue
+        key, value = item.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key and value:
+            mapping[key] = value
+    return mapping
 
 
 def synthesize(

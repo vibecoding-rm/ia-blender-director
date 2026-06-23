@@ -36,6 +36,34 @@ class TTSDispatchTest(unittest.TestCase):
         self.assertTrue(ok)
         mock_piper.assert_called_once()
 
+    def test_voice_for_character_uses_json_map(self):
+        with patch.object(
+            tts.settings,
+            "tts_character_voices",
+            '{"cotorra_v1": "assets/voices/cotorra.onnx"}',
+        ):
+            voice = tts.voice_for_character("cotorra_v1")
+        self.assertEqual(voice, tts.ROOT / "assets" / "voices" / "cotorra.onnx")
+
+    def test_voice_for_character_supports_semicolon_map(self):
+        with patch.object(
+            tts.settings,
+            "tts_character_voices",
+            "cotorra_v1=assets/voices/cotorra.onnx;cerdo_v1=C:/voices/cerdo.onnx",
+        ):
+            voice = tts.voice_for_character("cerdo_v1")
+        self.assertEqual(voice, Path("C:/voices/cerdo.onnx"))
+
+    def test_explicit_voice_wins_over_character_map(self):
+        explicit = Path("custom.onnx")
+        with patch.object(
+            tts.settings,
+            "tts_character_voices",
+            '{"cotorra_v1": "assets/voices/cotorra.onnx"}',
+        ):
+            voice = tts.voice_for_character("cotorra_v1", explicit_voice=explicit)
+        self.assertEqual(voice, explicit)
+
 
 if __name__ == "__main__":
     unittest.main()

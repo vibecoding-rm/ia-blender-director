@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     tts_speaker_wav: str | None = None      # muestra de referencia para clonar voz
     tts_language: str = "es"
     tts_command: str | None = None          # plantilla para tts_engine="command"
+    tts_character_voices: str | None = None # JSON: {"cotorra_v1": "assets/voices/cotorra.onnx"}
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

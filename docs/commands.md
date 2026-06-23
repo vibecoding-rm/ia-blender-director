@@ -97,6 +97,8 @@ Flags de postproducción:
 - `--hook "TEXTO"`: tarjeta de apertura de 1.4s con titular gigante y sting.
 - `--narration "TEXTO"`: voz en español (piper-tts) + subtítulos quemados.
 - `--voice ruta.onnx`: otra voz piper (default: assets/voices/es_MX-claude-high.onnx).
+- `--voice-character cotorra_v1`: usa la voz configurada para ese `asset_id`
+  en `TTS_CHARACTER_VOICES` si no se pasa `--voice`.
 - `--vertical`: 720x1280 (Shorts/TikTok/Reels).
 - `--no-subtitles` / `--no-sfx` / `--no-comfy`: desactivar pasos.
 - Música de fondo: colocar `assets/audio/music_bed.mp3` (se mezcla a volumen bajo automáticamente).
@@ -115,7 +117,7 @@ PYTHONPATH=src python3 -m ai_blender_director.cli batch examples/episodios/seman
 ```
 
 - El archivo es JSONL: una línea JSON por episodio con `id`, `prompt`, `hook`,
-  `narration` (defaults: 6 planos de 3s, 12 fps, vertical).
+  `narration`, `voice_character` (defaults: 6 planos de 3s, 12 fps, vertical).
 - Reanudable: los episodios cuyo MP4 ya existe se saltan (`--force` para repetir).
 - Un episodio fallido no detiene el lote; al final imprime resumen con tiempos.
 - `--dry-run` valida el archivo y lista lo que produciría sin renderizar.

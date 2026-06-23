@@ -45,6 +45,11 @@ def register_parsers(subparsers: argparse._SubParsersAction) -> None:
     )
     pipeline_parser.add_argument("--voice", type=Path, default=None, help="Ruta a un modelo de voz piper (.onnx).")
     pipeline_parser.add_argument(
+        "--voice-character",
+        default=None,
+        help="asset_id del personaje narrador para elegir voz via TTS_CHARACTER_VOICES.",
+    )
+    pipeline_parser.add_argument(
         "--hook", default=None,
         help="Titular del gancho: tarjeta de apertura de 1.4s con texto gigante y sting.",
     )
@@ -162,7 +167,10 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
     # Lip-sync de punta a punta: sintetiza la narración ANTES de renderizar,
     # genera la timeline de visemas (Rhubarb) y la inyecta en cada plano para
     # que Blender mueva el pico de La Cotorra al hablar.
-    narration_wav = _prepare_lipsync(args, paths, slug_for_prompt(args.prompt)[:40])
+    narration_voice = _voice_for_narration(args, paths)
+    narration_wav = _prepare_lipsync(
+        args, paths, slug_for_prompt(args.prompt)[:40], voice=narration_voice
+    )
 
     job_dirs: list[Path] = []
 
@@ -268,7 +276,7 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
         fps=int(first_spec.fps),
         hook_title=args.hook,
         narration_text=args.narration,
-        voice=args.voice,
+        voice=narration_voice,
         subtitles=not args.no_subtitles,
         sfx=not args.no_sfx,
         narration_wav=narration_wav,
@@ -283,7 +291,13 @@ def _handle_multi_shot(args: argparse.Namespace) -> int:
     return 0
 
 
-def _prepare_lipsync(args: argparse.Namespace, paths: list[Path], slug: str) -> Path | None:
+def _prepare_lipsync(
+    args: argparse.Namespace,
+    paths: list[Path],
+    slug: str,
+    *,
+    voice: Path | None = None,
+) -> Path | None:
     """Sintetiza la narración e inyecta visemas en cada plano. Devuelve el WAV.
 
     Devuelve None (sin lip-sync, sin reutilizar WAV) si no hay narración o si
@@ -301,7 +315,8 @@ def _prepare_lipsync(args: argparse.Namespace, paths: list[Path], slug: str) -> 
     narration_wav = (work_root / f"_narration_{slug}.wav").resolve()
 
     print("\n=== [PRE] NARRACIÓN + LIP-SYNC ===")
-    if not synthesize(args.narration, narration_wav, voice=args.voice):
+    narration_voice = voice or _voice_for_narration(args, paths)
+    if not synthesize(args.narration, narration_wav, voice=narration_voice):
         print("  warning: falló la síntesis de voz; sin lip-sync", file=sys.stderr)
         return None
     print(f"  narración: {narration_wav.name}")
@@ -317,6 +332,30 @@ def _prepare_lipsync(args: argparse.Namespace, paths: list[Path], slug: str) -> 
             injected += 1
     print(f"  visemas inyectados en {injected}/{len(paths)} plano(s)")
     return narration_wav
+
+
+def _voice_for_narration(args: argparse.Namespace, paths: list[Path]) -> Path | None:
+    """Devuelve la voz explicita o la voz mapeada para el personaje narrador."""
+    explicit_voice = getattr(args, "voice", None)
+    requested_character = getattr(args, "voice_character", None)
+    character = requested_character or _first_character(paths)
+
+    from ..tts import voice_for_character
+
+    return voice_for_character(character, explicit_voice=explicit_voice)
+
+
+def _first_character(paths: list[Path]) -> str | None:
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        assets = data.get("assets") or {}
+        character = data.get("character") or assets.get("character")
+        if character:
+            return str(character)
+    return None
 
 
 def _inject_lipsync(shot_path: Path, viseme_json: Path, *, offset: float) -> bool:

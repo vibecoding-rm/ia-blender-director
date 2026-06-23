@@ -91,6 +91,35 @@ class PrepareLipsyncTest(unittest.TestCase):
             args = argparse.Namespace(narration=None, duration=4, output_root=tmp, voice=None)
             self.assertIsNone(pipeline._prepare_lipsync(args, [], "slug"))
 
+    def test_voice_for_narration_uses_first_character(self):
+        with tempfile.TemporaryDirectory() as tmpd:
+            tmp = Path(tmpd)
+            paths = self._write_shots(tmp, ["cotorra_v1"])
+            with patch(
+                "ai_blender_director.tts.voice_for_character",
+                return_value=Path("cotorra.onnx"),
+            ) as mock_voice:
+                voice = pipeline._voice_for_narration(self._args(tmp), paths)
+
+            self.assertEqual(voice, Path("cotorra.onnx"))
+            mock_voice.assert_called_once_with("cotorra_v1", explicit_voice=None)
+
+    def test_voice_character_overrides_first_character(self):
+        with tempfile.TemporaryDirectory() as tmpd:
+            tmp = Path(tmpd)
+            paths = self._write_shots(tmp, ["cotorra_v1"])
+            args = self._args(tmp)
+            args.voice_character = "cerdo_v1"
+
+            with patch(
+                "ai_blender_director.tts.voice_for_character",
+                return_value=Path("cerdo.onnx"),
+            ) as mock_voice:
+                voice = pipeline._voice_for_narration(args, paths)
+
+            self.assertEqual(voice, Path("cerdo.onnx"))
+            mock_voice.assert_called_once_with("cerdo_v1", explicit_voice=None)
+
 
 if __name__ == "__main__":
     unittest.main()
