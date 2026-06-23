@@ -1,0 +1,14 @@
+{
+  "id": "trovador_v1",
+  "type": "character",
+  "name": "El Trovador del Picadillo de Soya",
+  "source": "original_glb",
+  "path": "trovador_v1.glb",
+  "metadata": {
+    "description": "Sinsonte trovador con guitarra y coro de relleno, cantando odas por encargo. Rig de 11 huesos con pico Beak para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Beak", "Arm.L", "Arm.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_remaining_characters.py"
+  }
+}

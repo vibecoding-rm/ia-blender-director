@@ -19,22 +19,25 @@
 | Michelito Filo | `michelito_v1` | gallo navaja | `Beak` | ✅ |
 | Gaby Filo | `gaby_v1` | lechuza de teleprompter | `Beak` | ✅ |
 | Randy Redondo | `randy_v1` | tortuga de mesa | `Jaw` | ✅ |
+| Arleen Chapea | `arleen_v1` | jutía podadora | `Jaw` | ✅ |
+| Brigada Copy-Paste | `brigada_v1` | clones con teclado | `Jaw` | ✅ |
+| Lázaro Mediodía | `lazaro_v1` | hurón de última hora | `Jaw` | ✅ |
+| Fantasma de la Pupila | `pupila_v1` | retrato fantasma | `Jaw` | ✅ |
 | Guerrero de Lata | `guerrero_v1` | armadura anónima | visera `Jaw` | ✅ |
 | El Guanajo Designado | `guanajo_v1` | pavo marioneta | pico `Beak` | ✅ |
 | El Caimán General | `caiman_v1` | cocodrilo militar titiritero | `Jaw` | ✅ |
+| Gerardo el Chivatón | `chivaton_v1` | chivo vigilante | `Jaw` | ✅ |
+| Marrero el Conserje 5★ | `marrero_v1` | pavo real hotelero | `Beak` | ✅ |
+| Bruno Bloqueo | `bruno_v1` | majá canciller | `Jaw` | ✅ |
+| Trovador del Picadillo | `trovador_v1` | sinsonte con guitarra | `Beak` | ✅ |
 
 Cada uno tiene acciones NLA **Idle / Talk / Walk** y huesos de ojos para parpadeo. Los `export_*.py`
 viven en `scripts/blender/` y los GLB fueron **construidos y verificados** en Blender 4.2.
 
-### Documentados / banco de reserva (definidos, sin modelar) 📝
+### Banco de reserva 📝
 
-- **Aparato (TV/digital):** Arleen Chapea (jutía), Brigada Copy-Paste (clones),
-  Lázaro Mediodía (hurón), Fantasma de la Pupila (retrato).
-- **Cúpula y aliados:** Gerardo el Chivatón (jefe CDR), Marrero el Conserje 5★ (PM),
-  Bruno Bloqueo (canciller),
-  El Trovador del Picadillo de Soya (artistas oficialistas).
-
-Todos con diseño 3D, gags, voz y `asset_id` sugerido en [`personajes.md`](personajes.md).
+El banco definido en [`personajes.md`](personajes.md) ya está modelado como GLB riggeado
+para los personajes principales, aparato digital, cúpula y aliados.
 
 ---
 
@@ -103,7 +106,6 @@ ai-blender-director auto-director "La Cotorra presenta noticia urgente del régi
 ## 6. Próximos pasos sugeridos
 
 1. **Render real en GPU** (Vast.ai) para ver el reparto en movimiento — el mayor pendiente.
-2. Modelar aliados restantes de la cúpula (Gerardo, Marrero, Bruno, Trovador) y/o secundarios (Arleen, Brigada Copy-Paste).
-3. **Gags de escena** (Humbrete baja la luz / tapa cámara; Ciberclarias se hunden) como
+2. **Gags de escena** (Humbrete baja la luz / tapa cámara; Ciberclarias se hunden) como
    comportamiento de postproducción.
-4. Presets de voz reales por personaje (grabar/descargar modelos `.onnx` y mapearlos en `.env`).
+3. Presets de voz reales por personaje (grabar/descargar modelos `.onnx` y mapearlos en `.env`).

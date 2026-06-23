@@ -1,0 +1,14 @@
+{
+  "id": "arleen_v1",
+  "type": "character",
+  "name": "Arleen Chapea, la Jutia Podadora",
+  "source": "original_glb",
+  "path": "arleen_v1.glb",
+  "metadata": {
+    "description": "Jutia con tijeras de jardin y gesto de podar la realidad: corta lo incomodo y deja solo lo conveniente. Rig de 11 huesos con mandibula Jaw para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_remaining_characters.py"
+  }
+}

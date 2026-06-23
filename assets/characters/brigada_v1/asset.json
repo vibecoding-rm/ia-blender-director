@@ -1,0 +1,14 @@
+{
+  "id": "brigada_v1",
+  "type": "character",
+  "name": "La Brigada Copy-Paste",
+  "source": "original_glb",
+  "path": "brigada_v1.glb",
+  "metadata": {
+    "description": "Clon digital con teclado, badge verde y comportamiento de tropa repetidora. Pensado para instanciarse como minion del aparato. Rig de 11 huesos con mandibula Jaw para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_remaining_characters.py"
+  }
+}

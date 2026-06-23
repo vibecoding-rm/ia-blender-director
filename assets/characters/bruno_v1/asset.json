@@ -1,0 +1,14 @@
+{
+  "id": "bruno_v1",
+  "type": "character",
+  "name": "Bruno Bloqueo, el Maja Canciller",
+  "source": "original_glb",
+  "path": "bruno_v1.glb",
+  "metadata": {
+    "description": "Maja diplomatico enrollado en su explicacion unica, con cartel de bloqueo para tapar cualquier dato incomodo. Rig de 11 huesos con mandibula Jaw para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_remaining_characters.py"
+  }
+}

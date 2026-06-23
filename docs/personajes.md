@@ -235,10 +235,10 @@ Orden recomendado (impacto cómico + reutilización):
 | 4 | **Randy Redondo** | `randy_v1` | tortuga | Capítulos de apagones/bloqueo/economía |
 | 5 | **Guerrero de Lata** | `guerrero_v1` | armadura hueca | Gran personaje de redes/amenazas |
 | 6 | **Gaby Filo** | `gaby_v1` | lechuza | Dúo con Michelito |
-| 7 | Arleen Chapea | `arleen_v1` | jutía | Dúo con Randy |
-| 8 | Brigada Copy-Paste | `brigada_v1` | clones con teclado | Minions (instanciados) |
-| 9 | Lázaro Mediodía | `lazaro_v1` | hurón | Secundario rápido |
-| 10 | Fantasma de la Pupila | `pupila_v1` | retrato | Recurso de fondo |
+| 7 | **Arleen Chapea** | `arleen_v1` | jutía | Dúo con Randy |
+| 8 | **Brigada Copy-Paste** | `brigada_v1` | clones con teclado | Minions (instanciados) |
+| 9 | **Lázaro Mediodía** | `lazaro_v1` | hurón | Secundario rápido |
+| 10 | **Fantasma de la Pupila** | `pupila_v1` | retrato | Recurso de fondo |
 
 **Pasos por personaje:**
 1. `scripts/blender/export_<id>.py` (patrón de `export_cotorra.py`): armadura con mandíbula + ojos,
@@ -251,8 +251,7 @@ Orden recomendado (impacto cómico + reutilización):
 
 ## 10. La Cúpula del poder y aliados (banco de reserva)
 
-> Estado de modelado: `caiman_v1` y `guanajo_v1` ya tienen GLB riggeado; los
-> demás personajes de esta sección siguen como banco de reserva.
+> Estado de modelado: todos los personajes de esta sección ya tienen GLB riggeado.
 
 > Reparto **investigado y definido por si se necesita**. Mismas reglas: caricaturas
 > satíricas de figuras públicas por su rol político/público documentado.
@@ -325,7 +324,7 @@ Orden recomendado (impacto cómico + reutilización):
 |---|---|---|---|
 | El Caimán General | `caiman_v1` | cocodrilo militar | Titiritero del poder |
 | El Guanajo Designado | `guanajo_v1` | pavo marioneta | "Presidente" puppet |
-| Gerardo el Chivatón | `chivaton_v1` | chivo vigilante | Jefe de los CDR |
-| Marrero (Conserje 5★) | `marrero_v1` | pavo real | Hoteles vs. apagones |
-| Bruno Bloqueo | `bruno_v1` | majá diplomático | Todo es "el bloqueo" |
-| Trovador del Picadillo | `trovador_v1` | sinsonte + coro | Artistas oficialistas |
+| **Gerardo el Chivatón** | `chivaton_v1` | chivo vigilante | Jefe de los CDR |
+| **Marrero (Conserje 5★)** | `marrero_v1` | pavo real | Hoteles vs. apagones |
+| **Bruno Bloqueo** | `bruno_v1` | majá diplomático | Todo es "el bloqueo" |
+| **Trovador del Picadillo** | `trovador_v1` | sinsonte + coro | Artistas oficialistas |

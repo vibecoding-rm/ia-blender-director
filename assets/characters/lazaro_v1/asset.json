@@ -1,0 +1,14 @@
+{
+  "id": "lazaro_v1",
+  "type": "character",
+  "name": "Lazaro Mediodia, el Huron de Ultima Hora",
+  "source": "original_glb",
+  "path": "lazaro_v1.glb",
+  "metadata": {
+    "description": "Huron escurridizo de ultima hora, con microfono y corbata estrecha, siempre listo para vender el parte urgente. Rig de 11 huesos con mandibula Jaw para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_remaining_characters.py"
+  }
+}

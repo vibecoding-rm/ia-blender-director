@@ -64,6 +64,24 @@ class TestFallbackPlan(TestCase):
             shots = plan_shots("gaby filo lee del teleprompter matriz de opinión", n_shots=1)
         self.assertEqual(shots[0]["character"], "gaby_v1")
 
+    def test_remaining_character_mappings_detected(self):
+        from ai_blender_director.planner import plan_shots
+        cases = {
+            "arleen chapea con tijeras de podadora": "arleen_v1",
+            "brigada copy-paste de clones con teclado": "brigada_v1",
+            "lázaro mediodía reporta última hora": "lazaro_v1",
+            "fantasma de la pupila en un retrato": "pupila_v1",
+            "gerardo el chivatón vigila el cdr con binoculares": "chivaton_v1",
+            "marrero inaugura hotel cinco estrellas": "marrero_v1",
+            "bruno bloqueo canciller diplomático": "bruno_v1",
+            "trovador del picadillo toca guitarra": "trovador_v1",
+        }
+        with _without_openrouter():
+            for prompt, expected in cases.items():
+                with self.subTest(prompt=prompt):
+                    shots = plan_shots(prompt, n_shots=1)
+                    self.assertEqual(shots[0]["character"], expected)
+
     def test_shots_have_required_keys(self):
         from ai_blender_director.planner import plan_shots
         with _without_openrouter():

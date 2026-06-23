@@ -1,0 +1,14 @@
+{
+  "id": "pupila_v1",
+  "type": "character",
+  "name": "El Fantasma de la Pupila",
+  "source": "original_glb",
+  "path": "pupila_v1.glb",
+  "metadata": {
+    "description": "Retrato fantasma ideologico con marco de pared y brillo gris, recurso de fondo que dicta frases viejas. Rig de 11 huesos con mandibula Jaw para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Arm.L", "Arm.R", "Tail", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_remaining_characters.py"
+  }
+}
