@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 
 
@@ -29,8 +30,13 @@ CHARACTERS: tuple[CharacterDefinition, ...] = (
     CharacterDefinition("ciberclarias_v1", "Ciberclarias", ("ciberclaria", "ciberclarias", "troll", "enjambre", "claria", "bagre")),
     CharacterDefinition("comandante_cerdo_v1", "Comandante Cerdo", ("cerdo", "comandante", "portavoz", "pig")),
     CharacterDefinition("cotorra_v1", "La Cotorra", ("cotorra", "mascota", "loro", "parrot")),
-    CharacterDefinition("protagonista_v2", "Protagonista", ("personaje", "character", "hero", "heroe")),
+    CharacterDefinition("protagonista_v1", "Protagonista Proxy", ("protagonista_v1", "protagonista v1", "proxy", "placeholder")),
+    CharacterDefinition("protagonista_v2", "Protagonista", ("protagonista", "protagonista_v2", "protagonista v2", "personaje", "character", "hero", "heroe", "h\u00e9roe", "soldier")),
 )
+
+
+def character_asset_ids() -> tuple[str, ...]:
+    return tuple(c.asset_id for c in CHARACTERS)
 
 
 def character_schema_text() -> str:
@@ -38,8 +44,17 @@ def character_schema_text() -> str:
 
 
 def detect_character(prompt: str) -> str | None:
-    normalized = " ".join(prompt.strip().lower().split())
+    normalized = _normalize_text(prompt)
     for character in CHARACTERS:
-        if any(keyword in normalized for keyword in character.keywords):
+        if character.asset_id in normalized:
+            return character.asset_id
+    for character in CHARACTERS:
+        if any(_normalize_text(keyword) in normalized for keyword in character.keywords):
             return character.asset_id
     return None
+
+
+def _normalize_text(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text.strip().lower())
+    ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
+    return " ".join(ascii_text.split())

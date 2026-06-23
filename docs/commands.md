@@ -39,6 +39,14 @@ PYTHONPATH=src python3 -m ai_blender_director.cli assets
 PYTHONPATH=src python3 -m ai_blender_director.cli assets --type character
 ```
 
+Validar el catalogo de assets:
+
+```bash
+make validate-assets
+PYTHONPATH=src python3 -m ai_blender_director.cli validate-assets --type character
+PYTHONPATH=src python3 -m ai_blender_director.cli validate-assets --blender
+```
+
 ## Validar un shot
 
 ```bash

@@ -2,7 +2,7 @@
 
 > **Pipeline local con IA para producir videos animados en estilo claymation — "El Noticiero de La Cotorra"**
 
-[![CI](https://github.com/devmaikelrm/ia-blender-director/actions/workflows/ci.yml/badge.svg)](https://github.com/devmaikelrm/ia-blender-director/actions/workflows/ci.yml)
+[![CI](https://github.com/vibecoding-rm/ia-blender-director/actions/workflows/ci.yml/badge.svg)](https://github.com/vibecoding-rm/ia-blender-director/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Blender 4.2 LTS](https://img.shields.io/badge/blender-4.2%20LTS-orange.svg)](https://www.blender.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -40,7 +40,7 @@ El proyecto está orientado a producir sátira de noticias con personajes propio
 | Registro SQLite de renders | ✅ Funcional |
 | Sets procedurales (cyberpunk, forest, desert, etc.) | ✅ Funcional |
 | Estilo claymation automático | ✅ Funcional |
-| Personajes propios: La Cotorra + El Comandante Cerdo | ✅ Funcional |
+| Catalogo de personajes riggeados | ✅ Funcional |
 | Formato vertical 9:16 (`--vertical`) | ✅ Funcional |
 | Postproducción Shorts (gancho, TTS, subtítulos, SFX) | ✅ Funcional |
 | Cola nocturna (`batch semana.jsonl`) | ✅ Funcional |
@@ -67,7 +67,7 @@ El proyecto está orientado a producir sátira de noticias con personajes propio
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/devmaikelrm/ia-blender-director.git
+git clone https://github.com/vibecoding-rm/ia-blender-director.git
 cd ia-blender-director
 
 # 2. Crear entorno virtual
@@ -128,6 +128,14 @@ make create PROMPT="bosque con niebla y cámara fija con personaje mirando a cá
 
 ```bash
 make validate SHOT=examples/shots/cyberpunk_orbit.json
+```
+
+### Validar el catalogo de assets
+
+```bash
+make validate-assets
+# Auditoria profunda de personajes en Blender:
+PYTHONPATH=src python3 -m ai_blender_director.cli validate-assets --blender
 ```
 
 ### Renderizar un spec existente
@@ -212,12 +220,30 @@ web/                       Interfaz web del servidor FastAPI
 
 ## Personajes
 
-| Personaje | Descripción |
+| Personaje | Asset |
 |---|---|
-| **La Cotorra** | Presentadora. Pico articulado, parpadeo, presentación de noticias. |
-| **El Comandante Cerdo** | Portavoz del régimen. Mandíbula articulada, dedo acusador. |
+| **La Cotorra** | `cotorra_v1` |
+| **El Comandante Cerdo** | `comandante_cerdo_v1` |
+| **Humbrete** | `humbrete_v1` |
+| **Michelito Filo** | `michelito_v1` |
+| **Gaby Filo** | `gaby_v1` |
+| **Randy Redondo** | `randy_v1` |
+| **Arleen Chapea** | `arleen_v1` |
+| **Brigada Copy-Paste** | `brigada_v1` |
+| **Lazaro Mediodia** | `lazaro_v1` |
+| **Fantasma de la Pupila** | `pupila_v1` |
+| **Guerrero de Lata** | `guerrero_v1` |
+| **El Guanajo Designado** | `guanajo_v1` |
+| **El Caiman General** | `caiman_v1` |
+| **Gerardo el Chivaton** | `chivaton_v1` |
+| **Marrero** | `marrero_v1` |
+| **Bruno Bloqueo** | `bruno_v1` |
+| **Trovador del Picadillo** | `trovador_v1` |
+| **Ciberclarias** | `ciberclarias_v1` |
+| **Protagonista proxy** | `protagonista_v1` |
+| **Protagonista actual** | `protagonista_v2` |
 
-Ambos son personajes originales generados por scripts propios con licencia propia. No contienen assets de terceros.
+La contact sheet del reparto esta en `docs/character_contact_sheet.png`.
 
 ---
 
