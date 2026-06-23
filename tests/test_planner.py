@@ -52,6 +52,12 @@ class TestFallbackPlan(TestCase):
             shots = plan_shots("hero walking in the rain", n_shots=1)
         self.assertEqual(shots[0].get("weather"), "rain")
 
+    def test_caiman_character_detected(self):
+        from ai_blender_director.planner import plan_shots
+        with _without_openrouter():
+            shots = plan_shots("el caimán general mueve los hilos de raúl", n_shots=1)
+        self.assertEqual(shots[0]["character"], "caiman_v1")
+
     def test_shots_have_required_keys(self):
         from ai_blender_director.planner import plan_shots
         with _without_openrouter():

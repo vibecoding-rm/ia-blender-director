@@ -122,12 +122,12 @@ class TestAssetRegistryResolveAll(unittest.TestCase):
                 self.assertEqual(spec.asset_id, asset_id)
                 self.assertTrue(spec.exists)
 
-    def test_list_all_assets_returns_sixteen(self) -> None:
+    def test_list_all_assets_returns_seventeen(self) -> None:
         specs = self._registry().list_assets()
-        self.assertEqual(len(specs), 16)
+        self.assertEqual(len(specs), 17)
         ids = {s.asset_id for s in specs}
         for asset_id in ("humbrete_v1", "ciberclarias_v1", "michelito_v1", "randy_v1",
-                         "guerrero_v1", "guanajo_v1"):
+                         "guerrero_v1", "guanajo_v1", "caiman_v1"):
             self.assertIn(asset_id, ids)
 
     def test_missing_asset_raises(self) -> None:

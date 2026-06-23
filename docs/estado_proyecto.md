@@ -20,6 +20,7 @@
 | Randy Redondo | `randy_v1` | tortuga de mesa | `Jaw` | ✅ |
 | Guerrero de Lata | `guerrero_v1` | armadura anónima | visera `Jaw` | ✅ |
 | El Guanajo Designado | `guanajo_v1` | pavo marioneta | pico `Beak` | ✅ |
+| El Caimán General | `caiman_v1` | cocodrilo militar titiritero | `Jaw` | ✅ |
 
 Cada uno tiene acciones NLA **Idle / Talk / Walk** y huesos de ojos para parpadeo. Los `export_*.py`
 viven en `scripts/blender/` y los GLB fueron **construidos y verificados** en Blender 4.2.
@@ -28,8 +29,8 @@ viven en `scripts/blender/` y los GLB fueron **construidos y verificados** en Bl
 
 - **Aparato (TV/digital):** Gaby Filo (lechuza), Arleen Chapea (jutía), Brigada Copy-Paste (clones),
   Lázaro Mediodía (hurón), Fantasma de la Pupila (retrato).
-- **Cúpula y aliados:** El Caimán General (Raúl), Gerardo el Chivatón (jefe CDR),
-  Marrero el Conserje 5★ (PM), Bruno Bloqueo (canciller),
+- **Cúpula y aliados:** Gerardo el Chivatón (jefe CDR), Marrero el Conserje 5★ (PM),
+  Bruno Bloqueo (canciller),
   El Trovador del Picadillo de Soya (artistas oficialistas).
 
 Todos con diseño 3D, gags, voz y `asset_id` sugerido en [`personajes.md`](personajes.md).
@@ -101,7 +102,7 @@ ai-blender-director auto-director "La Cotorra presenta noticia urgente del régi
 ## 6. Próximos pasos sugeridos
 
 1. **Render real en GPU** (Vast.ai) para ver el reparto en movimiento — el mayor pendiente.
-2. Modelar la **cúpula** restante (Caimán General) y/o secundarios (Gaby Filo, Arleen).
+2. Modelar aliados restantes de la cúpula (Gerardo, Marrero, Bruno, Trovador) y/o secundarios (Gaby Filo, Arleen).
 3. **Gags de escena** (Humbrete baja la luz / tapa cámara; Ciberclarias se hunden) como
    comportamiento de postproducción.
 4. Presets de voz reales por personaje (grabar/descargar modelos `.onnx` y mapearlos en `.env`).

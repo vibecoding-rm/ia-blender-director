@@ -1,0 +1,14 @@
+{
+  "id": "caiman_v1",
+  "type": "character",
+  "name": "El Caiman General",
+  "source": "original_glb",
+  "path": "caiman_v1.glb",
+  "metadata": {
+    "description": "Cocodrilo militar viejo, verde olivo, con gafas oscuras, dientes de caiman y barra de titiritero con hilos: el poder real detras del trono. Rig de 11 huesos con mandibula (Jaw) para lip-sync.",
+    "default_scale": 1.0,
+    "bones": ["Root", "Body", "Head", "Jaw", "Tail", "Arm.L", "Arm.R", "Leg.L", "Leg.R", "Eye.L", "Eye.R"],
+    "embedded_animations": ["Idle", "Talk", "Walk"],
+    "export_script": "scripts/blender/export_caiman.py"
+  }
+}

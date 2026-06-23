@@ -29,7 +29,7 @@ _SCENE_SCHEMA = {
             "subject": "main subject of the shot",
             "action": "what the subject is doing",
             "weather": "rain, fog, snow, or null",
-            "character_asset": "cotorra_v1 (presentadora), comandante_cerdo_v1 (vocero), humbrete_v1 (fiscal sabueso), michelito_v1 (gallito Con Filo), randy_v1 (tortuga Mesa Redonda), guerrero_v1 (armadura anónima), guanajo_v1 (presidente pavo-marioneta), ciberclarias_v1 (troll/enjambre), protagonista_v2 (humano genérico), or null",
+            "character_asset": "cotorra_v1 (presentadora), comandante_cerdo_v1 (vocero), humbrete_v1 (fiscal sabueso), michelito_v1 (gallito Con Filo), randy_v1 (tortuga Mesa Redonda), guerrero_v1 (armadura anónima), guanajo_v1 (presidente pavo-marioneta), caiman_v1 (caimán general/titiritero), ciberclarias_v1 (troll/enjambre), protagonista_v2 (humano genérico), or null",
             "environment_asset": "cyberpunk_street_v1, forest_v1, or null",
             "animation_asset": "walk_v1, run_v1, idle_v1, or null",
             "transition": {
@@ -346,6 +346,7 @@ def _fallback_plan(
         (["randy", "mesa redonda", "tortuga", "redondo", "decano"], "randy_v1"),
         (["guerrero", "lata", "anonimo", "anónimo", "casco", "armadura", "caballero"], "guerrero_v1"),
         (["guanajo", "designado", "diaz-canel", "diazcanel", "canel", "presidente", "pavo", "singao"], "guanajo_v1"),
+        (["caiman", "caimán", "cocodrilo", "raul", "raúl", "general", "titiritero", "hilos"], "caiman_v1"),
         (["ciberclaria", "ciberclarias", "troll", "enjambre", "claria", "bagre"], "ciberclarias_v1"),
         (["cerdo", "comandante", "portavoz", "pig"], "comandante_cerdo_v1"),
         (["cotorra", "mascota", "loro", "parrot"], "cotorra_v1"),

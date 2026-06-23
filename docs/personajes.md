@@ -251,7 +251,10 @@ Orden recomendado (impacto cómico + reutilización):
 
 ## 10. La Cúpula del poder y aliados (banco de reserva)
 
-> Reparto **investigado y definido por si se necesita** (no modelado aún). Mismas reglas: caricaturas
+> Estado de modelado: `caiman_v1` y `guanajo_v1` ya tienen GLB riggeado; los
+> demás personajes de esta sección siguen como banco de reserva.
+
+> Reparto **investigado y definido por si se necesita**. Mismas reglas: caricaturas
 > satíricas de figuras públicas por su rol político/público documentado.
 
 ### 🐊 El Caimán General — *el poder real tras el trono*
