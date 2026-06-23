@@ -139,7 +139,12 @@ def apply_overlays(
         strip_in = _image_input(strip, "ticker_strip")
         current = ffmpeg.filter([current, bg_in], "overlay", x=0, y=0, shortest=1)
         ticker_h = int(height * 0.058)
-        scroll_x = f"W-mod(t*{TICKER_SPEED_PX_S}\\,{strip_w})"
+        # Desplazamiento continuo del ticker. Evitamos `mod(a,b)` porque la coma
+        # del argumento se rompe al pasar por ffmpeg-python (escapa la barra y el
+        # parser del filtergraph trata la coma como separador de filtros). Usamos
+        # la identidad mod(a,b) = a - b*floor(a/b), sin comas.
+        s = TICKER_SPEED_PX_S
+        scroll_x = f"W-(t*{s}-{strip_w}*floor(t*{s}/{strip_w}))"
         current = ffmpeg.filter(
             [current, strip_in], "overlay", x=scroll_x, y=height - ticker_h, shortest=1
         )

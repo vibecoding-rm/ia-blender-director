@@ -102,11 +102,20 @@ def mix_audio_track(
         sting_stream = ffmpeg.input(str(sfx["sting"])).audio.filter('volume', 0.9)
         audio_streams.append(sting_stream)
         
-    if "whoosh" in sfx:
-        for t in cut_times:
+    if "whoosh" in sfx and cut_times:
+        # Un único archivo de whoosh alimenta varios cortes. ffmpeg-python
+        # deduplica el nodo idéntico, así que un solo `volume` terminaría con
+        # múltiples aristas de salida (error "split filter required"). Lo
+        # separamos explícitamente con `asplit`, igual que la voz arriba.
+        whoosh_base = ffmpeg.input(str(sfx["whoosh"])).audio.filter('volume', 0.6)
+        if len(cut_times) == 1:
+            whoosh_branches = [whoosh_base]
+        else:
+            split_node = whoosh_base.filter('asplit', len(cut_times)).node
+            whoosh_branches = [split_node[i] for i in range(len(cut_times))]
+        for branch, t in zip(whoosh_branches, cut_times):
             delay_ms = max(0, int(t * 1000))
-            whoosh_stream = ffmpeg.input(str(sfx["whoosh"])).audio.filter('volume', 0.6).filter('adelay', f"{delay_ms}|{delay_ms}")
-            audio_streams.append(whoosh_stream)
+            audio_streams.append(branch.filter('adelay', f"{delay_ms}|{delay_ms}"))
             
     if MUSIC_BED.exists():
         bgm_stream = ffmpeg.input(str(MUSIC_BED)).audio
